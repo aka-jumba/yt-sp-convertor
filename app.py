@@ -80,6 +80,8 @@ def yt_to_sp_playlist_controller():
     unmapped = []
     for video in videos_list:
         video['title'] = clean_title(video['title'])
+        if video['title'] == "":
+            continue
         video['videoOwner'] = clean_owner(video['videoOwner'])
         limit = 50
         offset = 0
@@ -105,9 +107,9 @@ def yt_to_sp_playlist_controller():
         while offset < hard_max:
             q = ""
             if best_artist['name'] == "":
-                q = "track:" + video['title']
+                q = video['title']
             else:
-                q = 'artist:' + best_artist['name'] + " track:" + video['title']
+                q = best_artist['name'] + " " + video['title']
             spotify_tracks = sp.search(q=q, type='track', offset=offset, limit=limit)
             tracks = spotify_tracks['tracks']
             if len(tracks['items']) == 0:
