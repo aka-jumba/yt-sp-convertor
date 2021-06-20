@@ -24,32 +24,35 @@ def hello():
     return "Hello, World!"
 
 
-@app.route('/api/yt-sp/song', methods=["POST"])
-def yt_to_sp_song_controller():
-    if request.method == 'POST' and request.data:
-        song_title = request.json['song_title']
-        print("song title sent is ", song_title)
-
-    return jsonify(message="song added to spotify playlist")
-
-
-def clean_title(title):
+def clean_title(title, artist):
+    title = title.lower()
+    artist = artist.lower()
     title = title.split('|')[0].strip()
-    if "(" in title:
-        groups = re.findall(
-            '^(.*)(?:\(.*\))$',
-            title)
-        title = groups[0]
-    if "[" in title:
-        groups = re.findall(
-            '^(.*)(?:\[.*\])$',
-            title)
-        title = groups[0]
+    groups = re.findall(
+        '^(.*)(?:\(.*\)).*$',
+        title)
+    if len(groups) != 0:
+        title = groups[0].strip()
+    groups = re.findall(
+        '^(.*)(?:\[.*\]).*$',
+        title)
+    if len(groups) != 0:
+        title = groups[0].strip()
+
+    if artist != "":
+        title = title.replace(artist, "").strip()
+    title = title.replace("-", "").strip()
+    title = title.split("by")[0].strip()
+    title = title.split("sung")[0].strip()
+    title = title.split("lyric")[0].strip()
     return title
 
 
-def clean_owner(artist):
-    return artist.split('-')[0].strip()
+def clean_owner(video_owner):
+    video_owner = video_owner.lower()
+    video_owner = video_owner.replace("topic", "").strip()
+    video_owner = video_owner.replace("vevo", "").strip()
+    return video_owner.replace("-", "").strip()
 
 
 @app.route('/api/yt-sp/playlist', methods=["POST"])
@@ -79,14 +82,10 @@ def yt_to_sp_playlist_controller():
     yt_sp_mapping = []
     unmapped = []
     for video in videos_list:
-        video['title'] = clean_title(video['title'])
-        if video['title'] == "":
-            continue
-        video['videoOwner'] = clean_owner(video['videoOwner'])
         limit = 50
         offset = 0
         hard_max = 500
-
+        video['videoOwner'] = clean_owner(video['videoOwner'])
         best_artist = {'uri': "", 'name': "", "followers": 5000}
         while offset < hard_max:
             spotify_artists = sp.search(q=video['videoOwner'], type='artist', offset=offset, limit=limit)
@@ -95,7 +94,7 @@ def yt_to_sp_playlist_controller():
                 break
             offset += limit
             for artist in artists['items']:
-                if artist['followers']['total'] > best_artist['followers']:
+                if artist['followers']['total'] > best_artist['followers'] and artist['name'].lower() in video['videoOwner']:
                     best_artist['uri'] = artist['uri']
                     best_artist['name'] = artist['name']
                     best_artist['followers'] = artist['followers']['total']
@@ -103,6 +102,9 @@ def yt_to_sp_playlist_controller():
         best_match = {'uri': "", 'artist': "", 'popularity': 0, 'yt_video_id': video['videoId'],
                       'yt_video_owner': video['videoOwner']}
         print(best_artist)
+        video['title'] = clean_title(video['title'], best_artist['name'])
+        if video['title'] == "":
+            continue
         offset = 0
         while offset < hard_max:
             q = ""
@@ -135,8 +137,9 @@ def yt_to_sp_playlist_controller():
         print(video)
     return jsonify(videos_list=yt_sp_mapping)
 
-#parse title correct -- look out for pattern/ ml model
-#if two artist present issue
+
+# parse title correct -- look out for pattern/ ml model
+# if two artist present issue
 
 # {'videoId': 'JaiAWU2PVO4', 'title': 'Prateek Kuhad', 'videoOwner': 'Soulful Tracks Only'}
 # {'videoId': 'T5ljN3069KA', 'title': 'Aa Jaao ', 'videoOwner': 'Ankur Tewari'}
