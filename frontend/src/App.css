@@ -1,3 +1,48 @@
 .App {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+
+  color: white;
+  font-family: 'Roboto';
+}
+
+.header {
+  position: relative;
+  padding: 1rem 6rem;
+  margin-top: 1rem;
+}
+
+.header .bubble {
+  background-color: #111;
+  padding: 3rem 0;
+  border-radius: 1rem;
+}
+
+.header h1 {
+  font-weight: 300;
+  font-size: 48px;
+}
+
+.yt-to-sp {
+  position: relative;
+  padding: 1rem 6rem;
+}
+
+.yt-to-sp .bubble {
+  background-color: #FF0000;
+  padding: 3rem 0;
+  border-radius: 1rem;
+}
+
+.sp-to-yt {
+  position: relative;
+  padding: 1rem 6rem;
+}
+
+.sp-to-yt .bubble {
+  background-color: #1DB954;
+  padding: 3rem 0;
+  border-radius: 1rem;
 }
