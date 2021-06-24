@@ -13,8 +13,6 @@ import sys
 
 app = Flask(__name__)
 cors = CORS(app)
-credentials = None
-app.config['credentials'] = None
 SCOPES = ['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.force-ssl',
           'https://www.googleapis.com/auth/youtubepartner']
 CLIENT_SECRETS = ["client_secret.json", "client_secret-1.json", "client_secret-2.json"]
