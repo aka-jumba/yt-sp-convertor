@@ -341,15 +341,16 @@ def get_auth_token_spotify():
     return jsonify(spotify_token=spotify_token)
 
 
-@app.route('/api/spotify/get-token', methods=["POST"])
+@app.route('/api/spotify/get-token')
 def get_access_token():
-
-    redirect_url = request.json['redirect_url']
-    code = spotify_auth.parse_response_code(redirect_url)
-    auth_token = spotify_auth.get_access_token(code)
-    if spotify_auth.is_token_expired(auth_token):
-        return jsonify(auth_token=spotify_auth.refresh_access_token(auth_token["refresh_token"]))
-    return jsonify(auth_token=auth_token)
+    code = request.args.get('code')
+    try:
+        auth_token = spotify_auth.get_access_token(code)
+        if spotify_auth.is_token_expired(auth_token):
+            return jsonify(auth_token=spotify_auth.refresh_access_token(auth_token["refresh_token"]))
+        return jsonify(auth_token=auth_token)
+    except:
+        return jsonify(auth_token=[])
 
 
 @app.route('/api/sp-yt/playlist', methods=["POST"])
