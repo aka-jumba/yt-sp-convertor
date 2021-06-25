@@ -23,6 +23,12 @@ API_KEYS_YOUTUBE = ['AIzaSyAYg6xDI-6WFJTuhjLn4Laon854ul8TVBQ', "AIzaSyAkL3f37KL4
                     "AIzaSyAH_Hm9kYNFIJIv-iHVBVXqNixJpMBmpBc"]
 app.config['CORS_HEADERS'] = 'Content-Type'
 
+spotify_auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
+                            client_secret="ffd69ff41cf94ebda2647276d02f2e38",
+                            redirect_uri="https://example.com/callback",
+                            scope="user-library-read,playlist-modify-public",
+                            cache_path=".cache")
+
 
 @app.route("/")
 def hello():
@@ -300,28 +306,25 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status):
     return response
 
 
-def get_auth_token_spotify():
-    auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
-                        client_secret="ffd69ff41cf94ebda2647276d02f2e38",
-                        redirect_uri="https://example.com/callback",
-                        scope="user-library-read,playlist-modify-private,playlist-modify-public")
-    auth_url = auth.get_authorize_url()
-
-    auth_token = None
-    try:
-        r = requests.get(auth_url)
-        code = auth.parse_response_code(r.url)
-        auth_token = auth.get_access_token(code)['access_token']
-        print("Opened %s in your browser", auth_url)
-    except:
-        print("Please navigate here: %s", auth_url)
-
-    return auth_token
-
-
 @app.route('/api/spotify-login')
-def get_spotify_login():
-    return jsonify(auth_token=get_auth_token_spotify())
+def get_auth_token_spotify():
+    spotify_token = spotify_auth.get_cached_token()
+    if spotify_token and spotify_auth.is_token_expired(spotify_token):
+        return jsonify(spotify_token = spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
+    if not spotify_token:
+        auth_url = spotify_auth.get_authorize_url()
+        return jsonify(auth_url=auth_url)
+    return jsonify(spotify_token=spotify_token)
+
+
+@app.route('/api/spotify/get-token', methods=["POST"])
+def get_access_token():
+    redirect_url = request.json['redirect_url']
+    code = spotify_auth.parse_response_code(redirect_url)
+    auth_token = spotify_auth.get_access_token(code)
+    if spotify_auth.is_token_expired(auth_token):
+        return jsonify(auth_token=spotify_auth.refresh_access_token(auth_token["refresh_token"]))
+    return jsonify(auth_token=auth_token)
 
 
 @app.route('/api/sp-yt/playlist', methods=["POST"])
