@@ -187,18 +187,17 @@ def insert_video_repeat_youtube_auth(new_playlist_id, video_id, count):
     return response
 
 
-def is_playlist_not_private(playlist_id, youtube):
+def playlist_youtube_metadata(playlist_id, youtube):
     request1 = youtube.playlists().list(
-        part="status",
+        part="snippet,status",
         id=playlist_id,
-        fields="items/status/privacyStatus"
+        fields="items(snippet/title, snippet/description, snippet/channelTitle, status/privacyStatus)"
+
     )
-    response = request1.execute()
-    return response['items'][0]['status']['privacyStatus'] == "public" or response['items'][0]['status'][
-        'privacyStatus'] == "unlisted"
+    return request1.execute()
 
 
-def is_playlist_not_private_repeat(playlist_id):
+def playlist_youtube_metadata_repeat(playlist_id):
     response = None
     attempts = 0
     app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
@@ -206,7 +205,7 @@ def is_playlist_not_private_repeat(playlist_id):
     is_successful = False
     while attempts < len(API_KEYS_YOUTUBE):
         try:
-            response = is_playlist_not_private(playlist_id, youtube)
+            response = playlist_youtube_metadata(playlist_id, youtube)
             is_successful = True
         except:
             e = sys.exc_info()[0]
@@ -216,6 +215,31 @@ def is_playlist_not_private_repeat(playlist_id):
                 break
             app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
             youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
+        finally:
+            if is_successful:
+                break
+    return response
+
+
+def playlist_youtube_metadata_auth_repeat(new_playlist_id):
+    response = None
+    attempts = 0
+    set_credentials(CLIENT_SECRETS[attempts], None, attempts)
+    youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
+    is_successful = False
+    while attempts < len(CLIENT_SECRETS):
+        try:
+            response = playlist_youtube_metadata(new_playlist_id, youtube_authenticated)
+            is_successful = True
+        except:
+            e = sys.exc_info()[0]
+            print(e)
+            app.config["credentials"] = None
+            attempts += 1
+            if attempts >= len(CLIENT_SECRETS):
+                break
+            set_credentials(CLIENT_SECRETS[attempts], None, attempts)
+            youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
         finally:
             if is_successful:
                 break
@@ -310,7 +334,7 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status):
 def get_auth_token_spotify():
     spotify_token = spotify_auth.get_cached_token()
     if spotify_token and spotify_auth.is_token_expired(spotify_token):
-        return jsonify(spotify_token = spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
+        return jsonify(spotify_token=spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
     if not spotify_token:
         auth_url = spotify_auth.get_authorize_url()
         return jsonify(auth_url=auth_url)
@@ -394,6 +418,38 @@ def sp_to_yt_playlist_controller():
     return jsonify(videos_list=sp_yt_mapping)
 
 
+def compress_metadata_response(response):
+    info = {"channel_title": response["items"][0]["snippet"]["channelTitle"],
+            "description": response["items"][0]["snippet"]["description"],
+            "title": response["items"][0]["snippet"]["title"],
+            "status": response["items"][0]["status"]["privacyStatus"]}
+    return info
+
+
+@app.route('/api/spotify-playlist-metadata', methods=["POST"])
+def sp_playlist_metadata():
+    response = []
+    if request.method == 'POST' and request.data:
+        playlist_id = request.json['playlistId']
+        auth_token = request.json['auth_token']
+        sp = spotipy.Spotify(auth=auth_token)
+        response = sp.playlist(playlist_id, fields="collaborative,description,name,owner.display_name,public")
+    return jsonify(metadata=response)
+
+
+@app.route('/api/youtube-playlist-metadata', methods=["POST"])
+def yt_playlist_metadata():
+    if request.method == 'POST' and request.data:
+        playlist_id = request.json['playlistId']
+        response = playlist_youtube_metadata_repeat(playlist_id)
+        if len(response['items']) == 0:
+            response = playlist_youtube_metadata_auth_repeat(playlist_id)
+            return jsonify(metadata=compress_metadata_response(response))
+        else:
+            return jsonify(metdata=compress_metadata_response(response))
+    return jsonify(metadata=[])
+
+
 @app.route('/api/yt-sp/playlist', methods=["POST"])
 def yt_to_sp_playlist_controller():
     videos_list = []
@@ -403,13 +459,13 @@ def yt_to_sp_playlist_controller():
         playlist_id = request.json['playlistId']
         new_playlist_name = request.json['playlist_name']
         auth_token = request.json['auth_token']
+        status = request.json['status']
         sp = spotipy.Spotify(auth=auth_token)
-        is_not_private = is_playlist_not_private_repeat(playlist_id)
         next_page_token = ""
         end_of_call = False
         while not end_of_call:
             response = None
-            if is_not_private:
+            if status != "private":
                 response = get_playlist_item_repeat_youtube(playlist_id, next_page_token)
             else:
                 response = get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token)
@@ -480,31 +536,6 @@ def yt_to_sp_playlist_controller():
         for video in unmapped:
             print(video)
     return jsonify(videos_list=yt_sp_mapping)
-
-
-# @app.route('/api/yt-sp/get-playlists', methods=["POST"])
-# def yt_to_sp_get_playlists_controller():
-#     playlist_list = []
-#     channel_id = request.json['channelId']
-#     if request.method == 'POST' and request.data:
-#         next_page_token = ""
-#         end_of_call = False
-#         while not end_of_call:
-#             request1 = youtube.playlists().list(
-#                 part='contentDetails,id,snippet,status',
-#                 channelId=channel_id,
-#                 pageToken=next_page_token,
-#                 maxResults=50
-#             )
-#             response = request1.execute()
-#             if 'nextPageToken' not in response:
-#                 end_of_call = True
-#             else:
-#                 next_page_token = response['nextPageToken']
-#             for playlist in response['items']:
-#                 playlist_list.append(playlist['id'])
-#
-#     return jsonify(playlist_list=playlist_list)
 
 
 if __name__ == "__main__":
