@@ -1,22 +1,24 @@
 import "./App.css";
 import SpotifyToYoutube from "./SpotifyToYoutube/";
 import YoutubeToSpotify from "./YoutubeToSpotify/";
+import { Switch, Route, Redirect, BrowserRouter as Router } from "react-router-dom";
 
 function App() {
   return (
-    <div className="App">
-      <div className="header">
-        <div className="bubble">
-          <h1>Spotify Youtube App</h1>
-        </div>
-      </div>
-      <div className="mt-4">
-        <YoutubeToSpotify />
-      </div>
-      <div className="mt-4">
-        <SpotifyToYoutube />
-      </div>
-    </div>
+    <Router>
+      <Switch>
+        <Route exact path="/">
+          <Redirect to={{ pathname: "/sp2yt" }} />
+        </Route>
+        <Route path="/sp2yt">
+          <SpotifyToYoutube />
+        </Route>
+        <Route path="/yt2sp">
+          <YoutubeToSpotify />
+        </Route>
+        <Route render={() => <Redirect to="/" />} />
+      </Switch>
+    </Router>
   );
 }
 
