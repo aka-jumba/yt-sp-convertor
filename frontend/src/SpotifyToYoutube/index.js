@@ -24,7 +24,7 @@ export default (props) => {
       <div className="sp-to-yt">
         <div
           className="d-flex flex-column align-items-center"
-          style={{ padding: "3rem 4rem", backgroundColor: "#1DB954" }}
+          style={{ padding: "3rem 4rem", backgroundColor: "#1DB954", borderRadius: '.5rem' }}
         >
           <Form
             style={{
