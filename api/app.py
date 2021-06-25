@@ -10,8 +10,11 @@ from spotipy.oauth2 import SpotifyOAuth
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import sys
+import webbrowser
+import requests
 
 app = Flask(__name__)
+app.config['credentials'] = None
 cors = CORS(app)
 SCOPES = ['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.force-ssl',
           'https://www.googleapis.com/auth/youtubepartner']
@@ -19,10 +22,6 @@ CLIENT_SECRETS = ["client_secret.json", "client_secret-1.json", "client_secret-2
 API_KEYS_YOUTUBE = ['AIzaSyAYg6xDI-6WFJTuhjLn4Laon854ul8TVBQ', "AIzaSyAkL3f37KL47XWnh9dR1HdcUGGCddeoAZY",
                     "AIzaSyAH_Hm9kYNFIJIv-iHVBVXqNixJpMBmpBc"]
 app.config['CORS_HEADERS'] = 'Content-Type'
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
-                                               client_secret="ffd69ff41cf94ebda2647276d02f2e38",
-                                               redirect_uri="https://example.com/callback",
-                                               scope="user-library-read,playlist-modify-private,playlist-modify-public"))
 
 
 @app.route("/")
@@ -243,7 +242,6 @@ def get_playlist_item_repeat_youtube(playlist_id, next_page_token):
             attempts += 1
             if attempts >= len(API_KEYS_YOUTUBE):
                 break
-            # set_credentials(CLIENT_SECRETS[attempts], None, attempts)
             app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
             youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
         finally:
@@ -302,6 +300,30 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status):
     return response
 
 
+def get_auth_token_spotify():
+    auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
+                        client_secret="ffd69ff41cf94ebda2647276d02f2e38",
+                        redirect_uri="https://example.com/callback",
+                        scope="user-library-read,playlist-modify-private,playlist-modify-public")
+    auth_url = auth.get_authorize_url()
+
+    auth_token = None
+    try:
+        r = requests.get(auth_url)
+        code = auth.parse_response_code(r.url)
+        auth_token = auth.get_access_token(code)['access_token']
+        print("Opened %s in your browser", auth_url)
+    except:
+        print("Please navigate here: %s", auth_url)
+
+    return auth_token
+
+
+@app.route('/api/spotify-login')
+def get_spotify_login():
+    return jsonify(auth_token=get_auth_token_spotify())
+
+
 @app.route('/api/sp-yt/playlist', methods=["POST"])
 def sp_to_yt_playlist_controller():
     videos_list = []
@@ -310,6 +332,8 @@ def sp_to_yt_playlist_controller():
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
         new_playlist_title = request.json["playlist_name"]
+        auth_token = request.json['auth_token']
+        sp = spotipy.Spotify(auth=auth_token)
         limit = 50
         offset = 0
         total = 1000
@@ -334,7 +358,7 @@ def sp_to_yt_playlist_controller():
             matched = False
             while not end_of_call and current < hard_max:
                 response = search_repeat_youtube(video, next_page_token)
-                if response == None:
+                if response is None:
                     return jsonify(videos_list=videos_list)
                 if len(response['items']) == 0:
                     break
@@ -375,6 +399,8 @@ def yt_to_sp_playlist_controller():
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
         new_playlist_name = request.json['playlist_name']
+        auth_token = request.json['auth_token']
+        sp = spotipy.Spotify(auth=auth_token)
         is_not_private = is_playlist_not_private_repeat(playlist_id)
         next_page_token = ""
         end_of_call = False
@@ -384,7 +410,7 @@ def yt_to_sp_playlist_controller():
                 response = get_playlist_item_repeat_youtube(playlist_id, next_page_token)
             else:
                 response = get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token)
-            if response == None:
+            if response is None:
                 break
             if 'nextPageToken' not in response:
                 end_of_call = True
