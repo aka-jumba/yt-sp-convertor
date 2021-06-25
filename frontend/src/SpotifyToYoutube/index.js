@@ -1,5 +1,5 @@
 /* eslint-disable import/no-anonymous-default-export */
-import React, { useState } from "react";
+import React from "react";
 import "./index.css";
 import Header from "../Header";
 import FormComponent from "../FormComponent";
@@ -11,7 +11,7 @@ export default (props) => {
     <>
       <Header />
       <div className="sp-to-yt">
-        <FormComponent />
+        <FormComponent mode="sp2yt" />
       </div>
     </>
   );

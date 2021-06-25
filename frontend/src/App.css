@@ -5,7 +5,7 @@
   justify-content: stretch;
 
   color: white;
-  font-family: 'Roboto';
+  font-family: "Roboto";
 }
 
 .header {
@@ -31,7 +31,7 @@
 }
 
 .yt-to-sp .bubble {
-  background-color: #FF0000;
+  background-color: #ff0000;
   padding: 3rem 0;
   border-radius: 1rem;
 }
@@ -42,7 +42,18 @@
 }
 
 .sp-to-yt .bubble {
-  background-color: #1DB954;
+  background-color: #1db954;
   padding: 3rem 0;
   border-radius: 1rem;
+}
+
+.container-div {
+  position: relative;
+  padding: 1rem 6rem;
+}
+
+.container-div .bubble {
+  background-color: #333;
+  padding: 3rem 4rem;
+  border-radius: .5rem;
 }
