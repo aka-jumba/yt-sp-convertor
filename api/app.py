@@ -25,7 +25,7 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 
 spotify_auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
                             client_secret="ffd69ff41cf94ebda2647276d02f2e38",
-                            redirect_uri="https://example.com/callback",
+                            redirect_uri="https://ytsp.surge.sh/auth/spotify/callback/",
                             scope="user-library-read,playlist-modify-public",
                             cache_path=".cache")
 
@@ -343,6 +343,7 @@ def get_auth_token_spotify():
 
 @app.route('/api/spotify/get-token', methods=["POST"])
 def get_access_token():
+
     redirect_url = request.json['redirect_url']
     code = spotify_auth.parse_response_code(redirect_url)
     auth_token = spotify_auth.get_access_token(code)
