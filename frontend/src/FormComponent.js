@@ -2,6 +2,10 @@
 import React, { useState } from "react";
 import { Form, Button } from "react-bootstrap";
 import DownArrow from "./assets/downloading_white_48dp.svg";
+import axios from "axios";
+
+const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
+const youtubePlaylistFetchURL = `${API_URL}/api/youtube-playlist-metadata`;
 
 const extractSpotifyId = (url) => {
   let id = url;
@@ -13,12 +17,23 @@ const extractSpotifyId = (url) => {
 
 const extractYoutubeId = (url) => {
   let id = url;
-  let match = id.split('list=')[1];
+  let match = id.split("list=")[1];
   return match;
-}
+};
+
+const fetchYoutubePlaylistDetails = async (id) => {
+  try {
+    const { data } = await axios.post(youtubePlaylistFetchURL, {
+      playlistId: id,
+    });
+    return data;
+  } catch (err) {
+    throw err;
+  }
+};
 
 export default (props) => {
-  const { mode = "sp2yt", onConvert = () => {} } = props;
+  const { mode = "sp2yt", onConvert = () => {}, handleGoogleLogin } = props;
 
   const [url, setUrl] = useState(
     mode === "sp2yt"
@@ -26,12 +41,39 @@ export default (props) => {
       : "https://www.youtube.com/playlist?list=PLnA6ZM6GfCE0ezYy5YKrI7v6WZNkBP6rl"
   );
   const [name, setName] = useState("New Playlist");
+  const [isVerified, setVerified] = useState(false);
+  const [playlistData, setPlaylistData] = useState({});
 
   const onSubmit = async (e) => {
     e.preventDefault();
     let match = extractYoutubeId(url);
     console.log(`Extracted ID`, match);
     onConvert(match, name);
+  };
+
+  const onVerifyYoutube = async (e) => {
+    e.preventDefault();
+    setVerified(false);
+    setPlaylistData({});
+    try {
+      const data = await fetchYoutubePlaylistDetails(extractYoutubeId(url));
+      setPlaylistData(data);
+      console.log(data);
+      setVerified(true);
+    } catch (err) {
+      console.error(err);
+      try {
+        const loginRes = await handleGoogleLogin();
+        console.log(`Successfully logged in Google!`, loginRes);
+      } catch (er) {
+        console.error(`Google login mein error`, er);
+      }
+    }
+  };
+
+  const onVerifySpotify = async (e) => {
+    e.preventDefault();
+    console.log("Verify spotify!");
   };
 
   const isSp2yt = () => {
@@ -76,6 +118,15 @@ export default (props) => {
               onChange={(e) => setUrl(e.target.value)}
               placeholder="Eg: https://open.spotify.com/playlist/1Wr1URyL0fZcW10cHyxgpj"
             />
+            <Button
+              className="mt-2"
+              size="sm"
+              variant="primary"
+              onClick={isSp2yt() ? onVerifySpotify : onVerifyYoutube}
+            >
+              Verify
+            </Button>
+            {isVerified && JSON.stringify(playlistData)}
           </Form.Group>
           <Form.Group>
             <div
@@ -100,7 +151,12 @@ export default (props) => {
           </Form.Group>
         </div>
         <div>
-          <Button className="mt-1" variant="light" type="submit">
+          <Button
+            className="mt-1"
+            variant="light"
+            type="submit"
+            disabled={!isVerified}
+          >
             Convert
           </Button>
         </div>
