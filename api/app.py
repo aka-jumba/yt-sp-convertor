@@ -2,27 +2,30 @@
 import os
 import re
 import pickle
+import flask
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from googleapiclient.discovery import build
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from google_auth_oauthlib.flow import InstalledAppFlow
+import google_auth_oauthlib.flow
+import google.oauth2.credentials
 from google.auth.transport.requests import Request
 import sys
-import webbrowser
 import requests
+import uuid
 
 app = Flask(__name__)
 app.config['credentials'] = None
 cors = CORS(app)
+app.secret_key = uuid.uuid4().hex
 SCOPES = ['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.force-ssl',
           'https://www.googleapis.com/auth/youtubepartner']
 CLIENT_SECRETS = ["client_secret.json", "client_secret-1.json", "client_secret-2.json"]
 API_KEYS_YOUTUBE = ['AIzaSyAYg6xDI-6WFJTuhjLn4Laon854ul8TVBQ', "AIzaSyAkL3f37KL47XWnh9dR1HdcUGGCddeoAZY",
                     "AIzaSyAH_Hm9kYNFIJIv-iHVBVXqNixJpMBmpBc"]
 app.config['CORS_HEADERS'] = 'Content-Type'
-
+app.config['current_file_index'] = 0
 spotify_auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
                             client_secret="ffd69ff41cf94ebda2647276d02f2e38",
                             redirect_uri="https://ytsp.surge.sh/auth/spotify/callback/",
@@ -35,26 +38,62 @@ def hello():
     return "Hello, World!"
 
 
+def credentials_to_dict(credentials):
+    return {'token': credentials.token,
+            'refresh_token': credentials.refresh_token,
+            'token_uri': credentials.token_uri,
+            'client_id': credentials.client_id,
+            'client_secret': credentials.client_secret,
+            'scopes': credentials.scopes}
+
+
 def set_credentials(secret_file_name, credentials, auth_num):
     CLIENT_SECRETS_FILE = secret_file_name
+    app.config['current_file_index'] = auth_num
+    credentials = None
     if os.path.exists("token_" + str(auth_num) + ".pickle"):
         print('Loading Credentials From File...')
         with open("token_" + str(auth_num) + ".pickle", 'rb') as token:
             credentials = pickle.load(token)
             app.config['credentials'] = credentials
-    if not app.config['credentials'] or not app.config['credentials'].valid:
-        if app.config['credentials'] and app.config['credentials'].expired and app.config['credentials'].refresh_token:
+            return credentials_to_dict(credentials)
+    if not credentials or not credentials.valid:
+        if credentials and credentials.expired and credentials.refresh_token:
             print('Refreshing Access Token...')
-            app.config['credentials'].refresh(Request())
+            credentials.refresh(Request())
+            app.config['credentials'] = credentials
+            return credentials_to_dict(credentials)
         else:
             print('Fetching New Tokens...')
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES)
-            flow.run_local_server(port=8080, prompt="consent", authorization_prompt_message="")
-            credentials = flow.credentials
-            with open("token_" + str(auth_num) + ".pickle", 'wb') as f:
-                print('Saving Credentials for Future Use...')
-                pickle.dump(credentials, f)
-    app.config['credentials'] = credentials
+            flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES)
+            flow.redirect_uri = flask.url_for('google_redirect', _external=True)
+            authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
+            flask.session['state'] = state
+            flask.session['secret_file'] = CLIENT_SECRETS_FILE
+            return flask.redirect(authorization_url)
+
+
+@app.route('/google_redirect')
+def google_redirect():
+    # state = flask.session['state']
+    # CLIENT_SECRETS_FILE = flask.session['secret_file']
+    file_index = app.config["current_file_index"]
+    flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
+        CLIENT_SECRETS[file_index], scopes=SCOPES)
+    flow.redirect_uri = flask.url_for('google_redirect', _external=True)
+    authorization_response = flask.request.url
+    flow.fetch_token(authorization_response=authorization_response)
+
+    credentials = flow.credentials
+    with open("token_" + str(file_index) + ".pickle", 'wb') as f:
+        print('Saving Credentials for Future Use...')
+        pickle.dump(credentials, f)
+    return credentials
+
+
+@app.route('/api/youtube-login')
+def youtube_login():
+    return set_credentials(CLIENT_SECRETS[0], None, 0)
 
 
 def clean_title(title, artist):
@@ -350,7 +389,7 @@ def get_access_token():
             return jsonify(auth_token=spotify_auth.refresh_access_token(auth_token["refresh_token"]))
         return jsonify(auth_token=auth_token)
     except:
-        return jsonify(auth_token=[])
+        return jsonify(auth_token="")
 
 
 @app.route('/api/sp-yt/playlist', methods=["POST"])
