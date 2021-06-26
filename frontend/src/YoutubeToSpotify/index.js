@@ -10,6 +10,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 
 const loginURL = `${API_URL}/api/spotify-login`;
 const convertURL = `${API_URL}/api/yt-sp/playlist`;
+const youtubeLoginURL = `${API_URL}/api/youtube-login`;
 
 const fetchSpotifyAuthToken = async () => {
   try {
@@ -34,30 +35,63 @@ const convertPlaylist = async (playlistId, playlist_name, token) => {
   }
 };
 
+const handleLogin = () => {
+  let url = `${youtubeLoginURL}/0`;
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await axios.get(url);
+      console.log(`Youtube login success`, response);
+      resolve(response);
+    } catch (err) {
+      console.error(err);
+      window.open(url, "_blank");
+      return reject(err);
+      // reject(err);
+    }
+  });
+};
+
 export default (props) => {
   const [hitConvert, setHitConvert] = useState(true);
   const [isLoaded, setIsLoaded] = useState(true);
 
-  const onConvert = async (id, name) => {
+  const getSpotifyAccessToken = async () => {
+    let loginResponse = await fetchSpotifyAuthToken();
+    console.log(loginResponse);
+    const { data } = loginResponse;
+    console.log("Data received", data);
+    const { auth_url } = data;
+    if (auth_url) {
+      console.log(`Opening ${auth_url} in new tab!`);
+      window.open(auth_url, "_blank");
+      return null;
+      // this flow finishes here
+    }
+    // it reaches here if auth_url is not present in data
+    // which means it is logged in!
+    const { auth_token } = data;
+    console.log(auth_token);
+    const { access_token } = auth_token;
+    return access_token;
+  };
+
+  const onConvert = async (id, name, isPrivate = false) => {
     console.log(id, name);
-    let loginResponse;
     try {
+      // fetch playlist details
+      if (isPrivate) {
+        const res_yt = await handleLogin();
+        console.log(res_yt);
+      }
+      //
+      console.log("Yaha tak aa gaya bhaiya!");
       let spotifyAccessToken = localStorage.getItem("spotify-access-token");
       console.log(`Fetched from localstorage`, spotifyAccessToken);
       if (!spotifyAccessToken) {
-        loginResponse = await fetchSpotifyAuthToken();
-        console.log(loginResponse);
-
-        const { data } = loginResponse;
-        const { auth_url } = data;
-        if (auth_url) {
-          console.log(`Opening ${auth_url} in new tab!`);
-          window.open(auth_url, "_blank");
-        }
-        const { auth_token } = data;
-        console.log(auth_token);
-        const { access_token } = auth_token;
-        spotifyAccessToken = access_token;
+        spotifyAccessToken = await getSpotifyAccessToken();
+      }
+      if (spotifyAccessToken === null) {
+        return window.alert("Account verified! Please press Convert again!");
       }
 
       const response = await convertPlaylist(

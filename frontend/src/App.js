@@ -1,3 +1,4 @@
+/* eslint-disable import/no-anonymous-default-export */
 import "./App.css";
 import SpotifyToYoutube from "./SpotifyToYoutube/";
 import YoutubeToSpotify from "./YoutubeToSpotify/";
@@ -8,27 +9,31 @@ import {
   Redirect,
   BrowserRouter as Router,
 } from "react-router-dom";
+import YoutubeVerified from "./YoutubeVerified";
 
-function App() {
+export default () => {
   return (
-    <Router>
-      <Switch>
-        <Route exact path="/">
-          <Redirect to={{ pathname: "/sp2yt" }} />
-        </Route>
-        <Route path="/sp2yt">
-          <SpotifyToYoutube />
-        </Route>
-        <Route path="/yt2sp">
-          <YoutubeToSpotify />
-        </Route>
-        <Route path="/auth/spotify/callback">
-          <Verified />
-        </Route>
-        <Route render={() => <Redirect to="/" />} />
-      </Switch>
-    </Router>
+    <>
+      <Router>
+        <Switch>
+          <Route exact path="/">
+            <Redirect to={{ pathname: "/sp2yt" }} />
+          </Route>
+          <Route path="/sp2yt">
+            <SpotifyToYoutube />
+          </Route>
+          <Route path="/yt2sp">
+            <YoutubeToSpotify />
+          </Route>
+          <Route path="/auth/spotify/callback">
+            <Verified />
+          </Route>
+          <Route path="/google/verified">
+            <YoutubeVerified />
+          </Route>
+          <Route render={() => <Redirect to="/" />} />
+        </Switch>
+      </Router>
+    </>
   );
-}
-
-export default App;
+};
