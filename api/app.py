@@ -14,6 +14,7 @@ from google.auth.transport.requests import Request
 import sys
 import requests
 import uuid
+import json
 
 app = Flask(__name__)
 app.config['credentials'] = None
@@ -47,7 +48,7 @@ def credentials_to_dict(credentials):
             'scopes': credentials.scopes}
 
 
-def set_credentials(secret_file_name, credentials, auth_num):
+def set_credentials(secret_file_name, auth_num):
     CLIENT_SECRETS_FILE = secret_file_name
     app.config['current_file_index'] = auth_num
     credentials = None
@@ -66,7 +67,7 @@ def set_credentials(secret_file_name, credentials, auth_num):
         else:
             print('Fetching New Tokens...')
             flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(CLIENT_SECRETS_FILE, scopes=SCOPES)
-            flow.redirect_uri = flask.url_for('google_redirect', _external=True)
+            flow.redirect_uri = flask.url_for('google_redirect', _external=True, _scheme='https')
             authorization_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true')
             flask.session['state'] = state
             flask.session['secret_file'] = CLIENT_SECRETS_FILE
@@ -80,7 +81,7 @@ def google_redirect():
     file_index = app.config["current_file_index"]
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         CLIENT_SECRETS[file_index], scopes=SCOPES)
-    flow.redirect_uri = flask.url_for('google_redirect', _external=True)
+    flow.redirect_uri = flask.url_for('google_redirect', _external=True, _scheme='https')
     authorization_response = flask.request.url
     flow.fetch_token(authorization_response=authorization_response)
 
@@ -88,12 +89,12 @@ def google_redirect():
     with open("token_" + str(file_index) + ".pickle", 'wb') as f:
         print('Saving Credentials for Future Use...')
         pickle.dump(credentials, f)
-    return credentials
+    return flask.redirect("https://ytsp.surge.sh/google/verified?token=" + credentials.token)
 
 
-@app.route('/api/youtube-login')
-def youtube_login():
-    return set_credentials(CLIENT_SECRETS[0], None, 0)
+@app.route('/api/youtube-login/<id>')
+def youtube_login(id):
+    return set_credentials(CLIENT_SECRETS[int(id)], int(id))
 
 
 def clean_title(title, artist):
@@ -162,25 +163,16 @@ def search_youtube(video, next_page_token, youtube):
 def search_repeat_youtube(video, next_page_token):
     response = None
     attempts = 0
-    app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-    youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-    is_successful = False
+    response = {"message": "No Quota Available in verified accounts!"}
     while attempts < len(API_KEYS_YOUTUBE):
         try:
+            developer_key = API_KEYS_YOUTUBE[attempts]
+            youtube = build('youtube', 'v3', developerKey=developer_key)
             response = search_youtube(video, next_page_token, youtube)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
-            app.config["credentials"] = None
             attempts += 1
-            if attempts >= len(API_KEYS_YOUTUBE):
-                break
-            app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-            youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
@@ -202,27 +194,25 @@ def insert_video(playlist_id, video_id, count, youtube):
 
 
 def insert_video_repeat_youtube_auth(new_playlist_id, video_id, count):
-    response = None
     attempts = 0
-    set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-    youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-    is_successful = False
+    credentials = []
     while attempts < len(CLIENT_SECRETS):
+        credential = get_credentials(attempts)
+        if credential is not None:
+            credentials.append(credential)
+        attempts += 1
+    if len(credentials) == 0:
+        response = {"message": "Authenticate First"}
+        return response
+
+    response = {"message": "No Quota Available in verified accounts!"}
+    for credential in credentials:
         try:
+            youtube_authenticated = build('youtube', 'v3', credentials=credential)
             response = insert_video(new_playlist_id, video_id, count, youtube_authenticated)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
-            app.config["credentials"] = None
-            attempts += 1
-            if attempts >= len(CLIENT_SECRETS):
-                break
-            set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-            youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
@@ -239,49 +229,40 @@ def playlist_youtube_metadata(playlist_id, youtube):
 def playlist_youtube_metadata_repeat(playlist_id):
     response = None
     attempts = 0
-    app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-    youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-    is_successful = False
+    response = {"message": "No Quota Available in verified accounts!"}
     while attempts < len(API_KEYS_YOUTUBE):
         try:
+            developer_key = API_KEYS_YOUTUBE[attempts]
+            youtube = build('youtube', 'v3', developerKey=developer_key)
             response = playlist_youtube_metadata(playlist_id, youtube)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
             attempts += 1
-            if attempts >= len(API_KEYS_YOUTUBE):
-                break
-            app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-            youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
+
 def playlist_youtube_metadata_auth_repeat(new_playlist_id):
-    response = None
     attempts = 0
-    set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-    youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-    is_successful = False
+    credentials = []
     while attempts < len(CLIENT_SECRETS):
+        credential = get_credentials(attempts)
+        if credential is not None:
+            credentials.append(credential)
+        attempts += 1
+    if len(credentials) == 0:
+        response = {"message": "Authenticate First"}
+        return response
+
+    response = {"message": "No Quota Available in verified accounts!"}
+    for credential in credentials:
         try:
+            youtube_authenticated = build('youtube', 'v3', credentials=credential)
             response = playlist_youtube_metadata(new_playlist_id, youtube_authenticated)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
-            app.config["credentials"] = None
-            attempts += 1
-            if attempts >= len(CLIENT_SECRETS):
-                break
-            set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-            youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
@@ -298,74 +279,71 @@ def get_playlist_item_youtube(playlist_id, next_page_token, youtube):
 def get_playlist_item_repeat_youtube(playlist_id, next_page_token):
     response = None
     attempts = 0
-    app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-    youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-    is_successful = False
+    response = {"message": "No Quota Available in verified accounts!"}
     while attempts < len(API_KEYS_YOUTUBE):
         try:
+            developer_key = API_KEYS_YOUTUBE[attempts]
+            youtube = build('youtube', 'v3', developerKey=developer_key)
             response = get_playlist_item_youtube(playlist_id, next_page_token, youtube)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
             attempts += 1
-            if attempts >= len(API_KEYS_YOUTUBE):
-                break
-            app.config['yt_api_key'] = API_KEYS_YOUTUBE[attempts]
-            youtube = build('youtube', 'v3', developerKey=app.config['yt_api_key'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
+def get_credentials(attempts):
+    if os.path.exists("token_" + str(attempts) + ".pickle"):
+        print('Loading Credentials From File...')
+        with open("token_" + str(attempts) + ".pickle", 'rb') as token:
+            credentials = pickle.load(token)
+            app.config['credentials'] = credentials
+            return credentials
+
+
 def get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token):
-    response = None
     attempts = 0
-    set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-    youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-    is_successful = False
+    credentials = []
     while attempts < len(CLIENT_SECRETS):
+        credential = get_credentials(attempts)
+        if credential is not None:
+            credentials.append(credential)
+        attempts += 1
+    if len(credentials) == 0:
+        response = {"message": "Authenticate First"}
+        return response
+
+    response = {"message": "No Quota Available in verified accounts!"}
+    for credential in credentials:
         try:
+            youtube_authenticated = build('youtube', 'v3', credentials=credential)
             response = get_playlist_item_youtube(playlist_id, next_page_token, youtube_authenticated)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
-            app.config["credentials"] = None
-            attempts += 1
-            if attempts >= len(CLIENT_SECRETS):
-                break
-            set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-            youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
 def create_playlist_repeat_youtube_auth(new_playlist_title, status):
-    response = None
     attempts = 0
-    set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-    youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-    is_successful = False
+    credentials = []
     while attempts < len(CLIENT_SECRETS):
+        credential = get_credentials(attempts)
+        if credential is not None:
+            credentials.append(credential)
+        attempts += 1
+    if len(credentials) == 0:
+        response = {"message": "Authenticate First"}
+        return response
+
+    response = {"message": "No Quota Available in verified accounts!"}
+    for credential in credentials:
         try:
+            youtube_authenticated = build('youtube', 'v3', credentials=credential)
             response = create_playlist(new_playlist_title, status, youtube_authenticated)
-            is_successful = True
+            break
         except:
-            e = sys.exc_info()[0]
-            print(e)
-            app.config["credentials"] = None
-            attempts += 1
-            if attempts >= len(CLIENT_SECRETS):
-                break
-            set_credentials(CLIENT_SECRETS[attempts], None, attempts)
-            youtube_authenticated = build('youtube', 'v3', credentials=app.config['credentials'])
-        finally:
-            if is_successful:
-                break
+            continue
     return response
 
 
@@ -373,11 +351,11 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status):
 def get_auth_token_spotify():
     spotify_token = spotify_auth.get_cached_token()
     if spotify_token and spotify_auth.is_token_expired(spotify_token):
-        return jsonify(spotify_token=spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
+        return jsonify(auth_token=spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
     if not spotify_token:
         auth_url = spotify_auth.get_authorize_url()
         return jsonify(auth_url=auth_url)
-    return jsonify(spotify_token=spotify_token)
+    return jsonify(auth_token=spotify_token)
 
 
 @app.route('/api/spotify/get-token')
@@ -485,6 +463,8 @@ def yt_playlist_metadata():
         response = playlist_youtube_metadata_repeat(playlist_id)
         if len(response['items']) == 0:
             response = playlist_youtube_metadata_auth_repeat(playlist_id)
+            if "message" in response:
+                return json.dumps(response), 500
             return jsonify(metadata=compress_metadata_response(response))
         else:
             return jsonify(metdata=compress_metadata_response(response))
@@ -496,6 +476,7 @@ def yt_to_sp_playlist_controller():
     videos_list = []
     yt_sp_mapping = []
     unmapped = []
+    sp_playlist_id = ""
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
         new_playlist_name = request.json['playlist_name']
@@ -510,8 +491,11 @@ def yt_to_sp_playlist_controller():
                 response = get_playlist_item_repeat_youtube(playlist_id, next_page_token)
             else:
                 response = get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token)
+
             if response is None:
-                break
+                response = {"message": "something went wrong!"}
+            if "message" in response:
+                return json.dumps(response), 500
             if 'nextPageToken' not in response:
                 end_of_call = True
             else:
@@ -576,8 +560,10 @@ def yt_to_sp_playlist_controller():
             sp.playlist_add_items(sp_playlist_id, uris_list[i:i + 100])
         for video in unmapped:
             print(video)
-    return jsonify(videos_list=yt_sp_mapping)
+    response = {"mapped_list": yt_sp_mapping, "unmapped_list": unmapped, "link": sp_playlist_id}
+    return jsonify(data=response)
 
 
 if __name__ == "__main__":
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     app.run(debug=True, port=3000)
