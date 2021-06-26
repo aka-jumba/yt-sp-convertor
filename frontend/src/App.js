@@ -1,7 +1,13 @@
 import "./App.css";
 import SpotifyToYoutube from "./SpotifyToYoutube/";
 import YoutubeToSpotify from "./YoutubeToSpotify/";
-import { Switch, Route, Redirect, BrowserRouter as Router } from "react-router-dom";
+import Verified from "./Verified";
+import {
+  Switch,
+  Route,
+  Redirect,
+  BrowserRouter as Router,
+} from "react-router-dom";
 
 function App() {
   return (
@@ -15,6 +21,9 @@ function App() {
         </Route>
         <Route path="/yt2sp">
           <YoutubeToSpotify />
+        </Route>
+        <Route path="/auth/spotify/callback">
+          <Verified />
         </Route>
         <Route render={() => <Redirect to="/" />} />
       </Switch>

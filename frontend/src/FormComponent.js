@@ -3,6 +3,20 @@ import React, { useState } from "react";
 import { Form, Button } from "react-bootstrap";
 import DownArrow from "./assets/downloading_white_48dp.svg";
 
+const extractSpotifyId = (url) => {
+  let id = url;
+  let regexPattern = new RegExp(".*/playlist/(.*)(?:\\?.*)?", "i");
+  let match = id.match(regexPattern)[1];
+  match = match.split("?")[0];
+  return match;
+};
+
+const extractYoutubeId = (url) => {
+  let id = url;
+  let match = id.split('list=')[1];
+  return match;
+}
+
 export default (props) => {
   const { mode = "sp2yt", onConvert = () => {} } = props;
 
@@ -15,8 +29,9 @@ export default (props) => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    console.log(url, name);
-    onConvert(url, name);
+    let match = extractYoutubeId(url);
+    console.log(`Extracted ID`, match);
+    onConvert(match, name);
   };
 
   const isSp2yt = () => {
