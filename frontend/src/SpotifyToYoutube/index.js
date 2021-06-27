@@ -67,11 +67,11 @@ const handleLogin = () => {
           response: { status },
         } = err;
         if (status === 501) {
-          window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+          window.open(`${url}/?id=${ytDev}&username=${uniqueId}/`, "_blank");
         } else if (status === 502) {
           cycleDev();
           return window.open(
-            `${url}/?id=${ytDev}&username=${uniqueId}`,
+            `${url}/?id=${ytDev}&username=${uniqueId}/`,
             "_blank"
           );
           // window.alert("Please try again!");

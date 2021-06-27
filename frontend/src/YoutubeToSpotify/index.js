@@ -67,12 +67,15 @@ const handleLogin = (responseStatus) => {
   let uniqueId = localStorage.getItem("yt-token");
   let ytDev = currentDev();
 
+  url = `${url}/?id=${ytDev}&username=${uniqueId}/`;
+  console.log("Requesting URL: ", url);
+
   if (responseStatus === 501) {
-    return window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+    return window.open(`${url}`, "_blank");
   } else if (responseStatus === 502) {
     cycleDev();
     ytDev = currentDev();
-    return window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+    return window.open(`${url}`, "_blank");
     // window.alert("Please try again!");
     // return;
   }
