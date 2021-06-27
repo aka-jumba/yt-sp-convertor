@@ -76,11 +76,14 @@ export default (props) => {
     getAuthToken = () => {},
   } = props;
 
-  const [url, setUrl] = useState(
-    mode === "sp2yt"
-      ? "https://open.spotify.com/playlist/4bnqXN2jgcHHVI1Vr6Jfhs"
-      : "https://www.youtube.com/playlist?list=PLf8HsGQSTWJuhLrovf13prQArGRgeGDNT"
-  );
+  // const [url, setUrl] = useState(
+  //   mode === "sp2yt"
+  //     ? "https://open.spotify.com/playlist/4bnqXN2jgcHHVI1Vr6Jfhs"
+  //     : "https://www.youtube.com/playlist?list=PLf8HsGQSTWJuhLrovf13prQArGRgeGDNT"
+  // );
+
+  const [url, setUrl] = useState("");
+
   const [name, setName] = useState("New Playlist");
   const [isVerified, setVerified] = useState(false);
   const [playlistData, setPlaylistData] = useState({});
@@ -140,15 +143,29 @@ export default (props) => {
     setVerified(false);
     setPlaylistData({});
     try {
-      const spotifyAuthToken = await getAuthToken();
+      let spotifyAccessToken = localStorage.getItem("spotify-access-token");
+      console.log(`Fetched from localstorage`, spotifyAccessToken);
+      if (!spotifyAccessToken) {
+        spotifyAccessToken = await getAuthToken();
+      }
+      if (spotifyAccessToken === null) {
+        return window.alert("Account verified! Please press Convert again!");
+      }
       const data = await fetchSpotifyPlaylistDetails(
         extractSpotifyId(url),
-        spotifyAuthToken
+        spotifyAccessToken
       );
       setPlaylistData(data);
       setVerified(true);
     } catch (err) {
-      console.log("YAHAN KYA HANDLE KARNA HAI? " + err);
+      // console.log("YAHAN KYA HANDLE KARNA HAI? " + err);
+      setVerified(true);
+      if (err.response) {
+        window.alert(JSON.stringify(err.response));
+      } else {
+        // window.alert("Check console!");
+      }
+      console.error(err);
     }
   };
 

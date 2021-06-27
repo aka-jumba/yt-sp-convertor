@@ -17,7 +17,7 @@ export default () => {
       <Router>
         <Switch>
           <Route exact path="/">
-            <Redirect to={{ pathname: "/sp2yt" }} />
+            <Redirect to={{ pathname: "/yt2sp" }} />
           </Route>
           <Route path="/sp2yt">
             <SpotifyToYoutube />

@@ -133,6 +133,7 @@ export default (props) => {
       }
       //
       console.log("Yaha tak aa gaya bhaiya!");
+
       let spotifyAccessToken = localStorage.getItem("spotify-access-token");
       console.log(`Fetched from localstorage`, spotifyAccessToken);
       if (!spotifyAccessToken) {
@@ -141,6 +142,7 @@ export default (props) => {
       if (spotifyAccessToken === null) {
         return window.alert("Account verified! Please press Convert again!");
       }
+      
       setIsLoaded(false);
       let uniqueId = localStorage.getItem("yt-token");
       const response = await convertPlaylist(
@@ -266,29 +268,3 @@ export default (props) => {
     </>
   );
 };
-
-// playlist_id, playlist_name, link
-// mapped_songs: [{artist, popularity, uri, yt link, yt video owner}]
-// unmapped_songs: []
-
-/*
-{
-    "link": "27qVuuEjm2mzCs7pX1OiNO",
-    "mapped_list": [
-        {
-            "artist": "fun.",
-            "popularity": 76,
-            "uri": "spotify:track:5rgy6ghBq1eRApCkeUdJXf",
-            "yt_video_id": "f_K_0SNaRk0",
-            "yt_video_owner": "fun."
-        },
-    ],
-    "unmapped_list": [
-      {
-        "videoId",
-        "videoOwner",
-        "title"
-      }
-    ]
-}
-*/

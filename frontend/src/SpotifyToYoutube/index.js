@@ -49,33 +49,42 @@ const getSpotifyAuthToken = async () => {
   return access_token;
 };
 
-const handleLogin = () => {
+const handleLogin = (responseStatus, depth = 0) => {
+  if (depth > 5) {
+    window.alert("Over!");
+    return;
+  }
   let url = `${youtubeLoginURL}`;
   let uniqueId = localStorage.getItem("yt-token");
   let ytDev = currentDev();
+
+  url = `${url}/?id=${ytDev}&username=${uniqueId}/`;
+
+  console.log(responseStatus, "YE HAI");
+
+  if (responseStatus === 501 || responseStatus === 302) {
+    return window.open(`${url}`, "_blank");
+  } else if (responseStatus === 502) {
+    cycleDev();
+    ytDev = currentDev();
+    return window.open(`${url}`, "_blank");
+    // window.alert("Please try again!");
+    // return;
+  }
+
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await axios.get(url, {
-        params: { id: ytDev, username: uniqueId },
-      });
+      console.log("ISS URL PE MAARUNGA", url);
+      const response = await axios.get(url);
       console.log(`Youtube login success`, response);
       resolve(response);
     } catch (err) {
-      console.error(`Youtube-login`, err);
-      if (err.response) {
-        const {
-          response: { status },
-        } = err;
-        if (status === 501) {
-          window.open(`${url}/?id=${ytDev}&username=${uniqueId}/`, "_blank");
-        } else if (status === 502) {
-          cycleDev();
-          return window.open(
-            `${url}/?id=${ytDev}&username=${uniqueId}/`,
-            "_blank"
-          );
-          // window.alert("Please try again!");
-        }
+      console.error(`Youtube-login`, err.status);
+      if (!err.status) {
+        handleLogin(501, depth + 1);
+      } else {
+        const { status } = err.response;
+        console.log("YE STATUS AAYA HAI", status);
       }
       return reject(err);
     }
@@ -118,7 +127,9 @@ export default () => {
 
   const onConvert = async (id, name, status, isUrl) => {
     try {
+      console.log("Calling handleLogin");
       const res_yt = await handleLogin();
+      console.log("res_yt", res_yt);
       console.log(res_yt);
       setHitConvert(true);
       let spotifyAccessToken = localStorage.getItem("spotify-access-token");
