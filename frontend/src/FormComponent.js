@@ -23,28 +23,47 @@ const extractYoutubeId = (url) => {
 };
 
 const fetchYoutubePlaylistDetails = async (id) => {
+  let username = localStorage.getItem("yt-token");
   try {
     const { data } = await axios.post(youtubePlaylistFetchURL, {
       playlistId: id,
+      username,
     });
-    return data;
+    console.log(data);
+    const { metdata: metadata } = data;
+
+    return {
+      owner: metadata["channel_title"],
+      description: metadata["description"],
+      status: metadata["status"],
+      title: metadata["title"],
+    };
   } catch (err) {
+    if (err.response) {
+      console.log(err.response);
+    }
     throw err;
   }
 };
 
 const fetchSpotifyPlaylistDetails = async (id, authToken) => {
-  console.log(authToken + " AUTH TOKEN")
+  console.log(authToken + " AUTH TOKEN");
   try {
     const { data } = await axios.post(spotifyYoutubePlaylistFetchURL, {
       playlistId: id,
-      auth_token: authToken
+      auth_token: authToken,
     });
-    return data;
+    const { metadata } = data;
+    return {
+      owner: metadata["owner"]["display_name"],
+      description: metadata["description"],
+      status: metadata["public"] ? "public" : "private",
+      title: metadata["name"],
+    };
   } catch (err) {
     throw err;
   }
-}
+};
 
 export default (props) => {
   const {
@@ -91,17 +110,20 @@ export default (props) => {
   };
 
   const onVerifySpotify = async (e) => {
-    console.log(url)
+    console.log(url);
     e.preventDefault();
     setVerified(false);
     setPlaylistData({});
     try {
-      const spotifyAuthToken = await getAuthToken()
-      const data = await fetchSpotifyPlaylistDetails(extractSpotifyId(url), spotifyAuthToken)
-      setPlaylistData(data)
+      const spotifyAuthToken = await getAuthToken();
+      const data = await fetchSpotifyPlaylistDetails(
+        extractSpotifyId(url),
+        spotifyAuthToken
+      );
+      setPlaylistData(data);
       setVerified(true);
     } catch (err) {
-      console.log("YAHAN KYA HANDLE KARNA HAI? " + err)
+      console.log("YAHAN KYA HANDLE KARNA HAI? " + err);
     }
   };
 

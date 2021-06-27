@@ -3,8 +3,16 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+import { v4 as uuid } from "uuid";
 
 console.log(process.env);
+
+let ytId = localStorage.getItem("yt-token");
+if (!ytId) {
+  localStorage.setItem("yt-token", uuid().toString());
+}
+ytId = localStorage.getItem("yt-token");
+console.log("Set unique user ID", ytId);
 
 ReactDOM.render(
   <React.StrictMode>

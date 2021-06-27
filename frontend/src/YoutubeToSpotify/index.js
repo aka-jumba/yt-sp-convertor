@@ -21,13 +21,20 @@ const fetchSpotifyAuthToken = async () => {
   }
 };
 
-const convertPlaylist = async (playlistId, playlist_name, token) => {
+const convertPlaylist = async (
+  playlistId,
+  playlist_name,
+  token,
+  status = "public",
+  username
+) => {
   try {
     const response = await axios.post(convertURL, {
       playlistId,
       playlist_name,
       auth_token: token,
       status: "public",
+      username,
     });
     return response;
   } catch (err) {
@@ -36,15 +43,19 @@ const convertPlaylist = async (playlistId, playlist_name, token) => {
 };
 
 const handleLogin = () => {
-  let url = `${youtubeLoginURL}/1`;
+  let url = `${youtubeLoginURL}`;
+  let uniqueId = localStorage.getItem("yt-token");
+
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await axios.get(url);
+      const response = await axios.get(url, {
+        params: { id: 1, username: uniqueId },
+      });
       console.log(`Youtube login success`, response);
       resolve(response);
     } catch (err) {
       console.error(err);
-      window.open(url, "_blank");
+      window.open(`${url}/?id=${1}&username=${uniqueId}`, "_blank");
       return reject(err);
       // reject(err);
     }
@@ -52,8 +63,9 @@ const handleLogin = () => {
 };
 
 export default (props) => {
-  const [hitConvert, setHitConvert] = useState(true);
+  const [hitConvert, setHitConvert] = useState(false);
   const [isLoaded, setIsLoaded] = useState(true);
+  const [plData, setPlData] = useState({});
 
   const getSpotifyAccessToken = async () => {
     let loginResponse = await fetchSpotifyAuthToken();
@@ -77,6 +89,7 @@ export default (props) => {
 
   const onConvert = async (id, name, isPrivate = false) => {
     console.log(id, name);
+    setHitConvert(true);
     try {
       // fetch playlist details
       if (isPrivate) {
@@ -93,15 +106,25 @@ export default (props) => {
       if (spotifyAccessToken === null) {
         return window.alert("Account verified! Please press Convert again!");
       }
-
+      setIsLoaded(false);
+      let uniqueId = localStorage.getItem("yt-token");
       const response = await convertPlaylist(
         id,
         name,
         spotifyAccessToken,
-        "public"
+        "public",
+        uniqueId
       );
       console.log(response);
+      setIsLoaded(true);
+      setPlData(response.data);
     } catch (err) {
+      setIsLoaded(true);
+      if (err.response) {
+        window.alert(JSON.stringify(err.response));
+      } else {
+        window.alert("Check console!");
+      }
       console.error(err);
     }
   };
@@ -144,3 +167,25 @@ export default (props) => {
 // playlist_id, playlist_name, link
 // mapped_songs: [{artist, popularity, uri, yt link, yt video owner}]
 // unmapped_songs: []
+
+/*
+{
+    "link": "27qVuuEjm2mzCs7pX1OiNO",
+    "mapped_list": [
+        {
+            "artist": "fun.",
+            "popularity": 76,
+            "uri": "spotify:track:5rgy6ghBq1eRApCkeUdJXf",
+            "yt_video_id": "f_K_0SNaRk0",
+            "yt_video_owner": "fun."
+        },
+    ],
+    "unmapped_list": [
+      {
+        "videoId",
+        "videoOwner",
+        "title"
+      }
+    ]
+}
+*/
