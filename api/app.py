@@ -27,6 +27,7 @@ API_KEYS_YOUTUBE = ['AIzaSyAYg6xDI-6WFJTuhjLn4Laon854ul8TVBQ', "AIzaSyAkL3f37KL4
                     "AIzaSyAH_Hm9kYNFIJIv-iHVBVXqNixJpMBmpBc"]
 app.config['CORS_HEADERS'] = 'Content-Type'
 app.config['current_file_index'] = 0
+app.config['current_username'] = ""
 spotify_auth = SpotifyOAuth(client_id="b3fcb55c0ddb41d3953a9244922e46d4",
                             client_secret="ffd69ff41cf94ebda2647276d02f2e38",
                             redirect_uri="https://ytsp.surge.sh/auth/spotify/callback/",
@@ -48,13 +49,14 @@ def credentials_to_dict(credentials):
             'scopes': credentials.scopes}
 
 
-def set_credentials(secret_file_name, auth_num):
+def set_credentials(secret_file_name, auth_num, username):
     CLIENT_SECRETS_FILE = secret_file_name
     app.config['current_file_index'] = auth_num
+    app.config['current_username'] = username
     credentials = None
-    if os.path.exists("token_" + str(auth_num) + ".pickle"):
+    if os.path.exists("token_" + str(auth_num) + "_" + username + ".pickle"):
         print('Loading Credentials From File...')
-        with open("token_" + str(auth_num) + ".pickle", 'rb') as token:
+        with open("token_" + str(auth_num) + "_" + username + ".pickle", 'rb') as token:
             credentials = pickle.load(token)
             app.config['credentials'] = credentials
             return credentials_to_dict(credentials)
@@ -79,6 +81,7 @@ def google_redirect():
     # state = flask.session['state']
     # CLIENT_SECRETS_FILE = flask.session['secret_file']
     file_index = app.config["current_file_index"]
+    username = app.config['current_username']
     flow = google_auth_oauthlib.flow.Flow.from_client_secrets_file(
         CLIENT_SECRETS[file_index], scopes=SCOPES)
     flow.redirect_uri = flask.url_for('google_redirect', _external=True, _scheme='https')
@@ -86,15 +89,17 @@ def google_redirect():
     flow.fetch_token(authorization_response=authorization_response)
 
     credentials = flow.credentials
-    with open("token_" + str(file_index) + ".pickle", 'wb') as f:
+    with open("token_" + str(file_index) + "_" + username + ".pickle", 'wb') as f:
         print('Saving Credentials for Future Use...')
         pickle.dump(credentials, f)
     return flask.redirect("https://ytsp.surge.sh/google/verified?token=" + credentials.token)
 
 
-@app.route('/api/youtube-login/<id>')
-def youtube_login(id):
-    return set_credentials(CLIENT_SECRETS[int(id)], int(id))
+@app.route('/api/youtube-login/')
+def youtube_login():
+    id = request.args.get('id')
+    username = request.args.get('username')
+    return set_credentials(CLIENT_SECRETS[int(id)], int(id), username)
 
 
 def clean_title(title, artist):
@@ -193,11 +198,11 @@ def insert_video(playlist_id, video_id, count, youtube):
     return request1.execute()
 
 
-def insert_video_repeat_youtube_auth(new_playlist_id, video_id, count):
+def insert_video_repeat_youtube_auth(new_playlist_id, video_id, count, username):
     attempts = 0
     credentials = []
     while attempts < len(CLIENT_SECRETS):
-        credential = get_credentials(attempts)
+        credential = get_credentials(attempts, username)
         if credential is not None:
             credentials.append(credential)
         attempts += 1
@@ -242,20 +247,19 @@ def playlist_youtube_metadata_repeat(playlist_id):
     return response
 
 
-
-def playlist_youtube_metadata_auth_repeat(new_playlist_id):
+def playlist_youtube_metadata_auth_repeat(new_playlist_id, username):
     attempts = 0
     credentials = []
     while attempts < len(CLIENT_SECRETS):
-        credential = get_credentials(attempts)
+        credential = get_credentials(attempts, username)
         if credential is not None:
             credentials.append(credential)
         attempts += 1
     if len(credentials) == 0:
-        response = {"message": "Authenticate First"}
+        response = {"message": "Authenticate First", "status": 501}
         return response
 
-    response = {"message": "No Quota Available in verified accounts!"}
+    response = {"message": "No Quota Available in verified accounts!", "status": 502}
     for credential in credentials:
         try:
             youtube_authenticated = build('youtube', 'v3', credentials=credential)
@@ -292,20 +296,20 @@ def get_playlist_item_repeat_youtube(playlist_id, next_page_token):
     return response
 
 
-def get_credentials(attempts):
-    if os.path.exists("token_" + str(attempts) + ".pickle"):
+def get_credentials(attempts, username):
+    if os.path.exists("token_" + str(attempts) + "_" + username + ".pickle"):
         print('Loading Credentials From File...')
-        with open("token_" + str(attempts) + ".pickle", 'rb') as token:
+        with open("token_" + str(attempts) + "_" + username + ".pickle", 'rb') as token:
             credentials = pickle.load(token)
             app.config['credentials'] = credentials
             return credentials
 
 
-def get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token):
+def get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token, username):
     attempts = 0
     credentials = []
     while attempts < len(CLIENT_SECRETS):
-        credential = get_credentials(attempts)
+        credential = get_credentials(attempts, username)
         if credential is not None:
             credentials.append(credential)
         attempts += 1
@@ -324,11 +328,11 @@ def get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token):
     return response
 
 
-def create_playlist_repeat_youtube_auth(new_playlist_title, status):
+def create_playlist_repeat_youtube_auth(new_playlist_title, status, username):
     attempts = 0
     credentials = []
     while attempts < len(CLIENT_SECRETS):
-        credential = get_credentials(attempts)
+        credential = get_credentials(attempts, username)
         if credential is not None:
             credentials.append(credential)
         attempts += 1
@@ -375,10 +379,17 @@ def sp_to_yt_playlist_controller():
     videos_list = []
     sp_yt_mapping = []
     unmapped = []
+    new_playlist_title = ""
+    yt_playlist_id = ""
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
-        new_playlist_title = request.json["playlist_name"]
+        if "playlist_name" in request.json:
+            new_playlist_title = request.json['playlist_name']
+        if "target_playlist_id" in request.json:
+            yt_playlist_id = request.json['target_playlist_id']
+
         auth_token = request.json['auth_token']
+        username = request.json['username']
         sp = spotipy.Spotify(auth=auth_token)
         limit = 50
         offset = 0
@@ -428,13 +439,16 @@ def sp_to_yt_playlist_controller():
                         break
             if not matched:
                 unmapped.append(video)
-        new_playlist_id = create_playlist_repeat_youtube_auth(new_playlist_title, "private")
+
+        if yt_playlist_id == "":
+            yt_playlist_id = create_playlist_repeat_youtube_auth(new_playlist_title, "private", username)
         count = 0
         for video_mapping in sp_yt_mapping:
-            insert_video_repeat_youtube_auth(new_playlist_id, video_mapping['yt_video_id'], count)
+            insert_video_repeat_youtube_auth(yt_playlist_id, video_mapping['yt_video_id'], count, username)
             count += 1
 
-    return jsonify(videos_list=sp_yt_mapping)
+    response = {"mapped_list": sp_yt_mapping, "unmapped_list": unmapped, "link": yt_playlist_id}
+    return jsonify(data=response)
 
 
 def compress_metadata_response(response):
@@ -456,18 +470,19 @@ def sp_playlist_metadata():
     return jsonify(metadata=response)
 
 
-@app.route('/api/youtube-playlist-metadata', methods=["POST"])
+@app.route('/api/youtube-playlist-metadata', methods=['POST'])
 def yt_playlist_metadata():
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
+        username = request.json['username']
         response = playlist_youtube_metadata_repeat(playlist_id)
         if len(response['items']) == 0:
-            response = playlist_youtube_metadata_auth_repeat(playlist_id)
+            response = playlist_youtube_metadata_auth_repeat(playlist_id, username)
             if "message" in response:
-                return json.dumps(response), 500
+                return json.dumps(response), response['status']
             return jsonify(metadata=compress_metadata_response(response))
         else:
-            return jsonify(metdata=compress_metadata_response(response))
+            return jsonify(metadata=compress_metadata_response(response))
     return jsonify(metadata=[])
 
 
@@ -476,12 +491,17 @@ def yt_to_sp_playlist_controller():
     videos_list = []
     yt_sp_mapping = []
     unmapped = []
+    new_playlist_name = ""
     sp_playlist_id = ""
     if request.method == 'POST' and request.data:
         playlist_id = request.json['playlistId']
-        new_playlist_name = request.json['playlist_name']
+        if "playlist_name" in request.json:
+            new_playlist_name = request.json['playlist_name']
+        if "target_playlist_id" in request.json:
+            sp_playlist_id = request.json['target_playlist_id']
         auth_token = request.json['auth_token']
         status = request.json['status']
+        username = request.json['username']
         sp = spotipy.Spotify(auth=auth_token)
         next_page_token = ""
         end_of_call = False
@@ -490,7 +510,7 @@ def yt_to_sp_playlist_controller():
             if status != "private":
                 response = get_playlist_item_repeat_youtube(playlist_id, next_page_token)
             else:
-                response = get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token)
+                response = get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token, username)
 
             if response is None:
                 response = {"message": "something went wrong!"}
@@ -525,7 +545,7 @@ def yt_to_sp_playlist_controller():
                         best_artist['followers'] = artist['followers']['total']
 
             best_match = {'uri': "", 'artist': "", 'popularity': 0, 'yt_video_id': video['videoId'],
-                          'yt_video_owner': video['videoOwner']}
+                          'yt_video_owner': video['videoOwner'], 'title':""}
             print(best_artist)
             video['title'] = clean_title(video['title'], best_artist['name'])
             if video['title'] == "":
@@ -547,14 +567,16 @@ def yt_to_sp_playlist_controller():
                         best_match['uri'] = track['uri']
                         best_match['artist'] = track['artists'][0]['name']
                         best_match['popularity'] = track['popularity']
+                        best_match['title'] = track['name']
             print(best_match)
             if best_match['uri'] != '':
                 yt_sp_mapping.append(best_match)
             else:
                 unmapped.append(video)
         user_id = sp.me()['id']
-        created_playlist_response = sp.user_playlist_create(user_id, new_playlist_name)
-        sp_playlist_id = created_playlist_response['id']
+        if sp_playlist_id == "":
+            created_playlist_response = sp.user_playlist_create(user_id, new_playlist_name)
+            sp_playlist_id = created_playlist_response['id']
         uris_list = [matched['uri'] for matched in yt_sp_mapping]
         for i in range(0, len(uris_list), 100):
             sp.playlist_add_items(sp_playlist_id, uris_list[i:i + 100])
