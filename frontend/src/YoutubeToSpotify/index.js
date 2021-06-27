@@ -36,7 +36,7 @@ const convertPlaylist = async (playlistId, playlist_name, token) => {
 };
 
 const handleLogin = () => {
-  let url = `${youtubeLoginURL}/0`;
+  let url = `${youtubeLoginURL}/1`;
   return new Promise(async (resolve, reject) => {
     try {
       const response = await axios.get(url);
@@ -129,7 +129,12 @@ export default (props) => {
     <>
       <Header />
       <div className="yt-to-sp">
-        <FormComponent mode="yt2sp" onConvert={onConvert} />
+        <FormComponent
+          mode="yt2sp"
+          onConvert={onConvert}
+          handleGoogleLogin={handleLogin}
+          getAuthToken={{}}
+        />
       </div>
       {hitConvert && renderResults()}
     </>
