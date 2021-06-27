@@ -98,7 +98,7 @@ def google_redirect():
 @app.route('/api/youtube-login/')
 def youtube_login():
     id = request.args.get('id')
-    username = request.args.get('username')
+    username = request.args.get('username')[:-1]
     return set_credentials(CLIENT_SECRETS[int(id)], int(id), username)
 
 
@@ -353,13 +353,8 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status, username):
 
 @app.route('/api/spotify-login')
 def get_auth_token_spotify():
-    spotify_token = spotify_auth.get_cached_token()
-    if spotify_token and spotify_auth.is_token_expired(spotify_token):
-        return jsonify(auth_token=spotify_auth.refresh_access_token(spotiToken["refresh_token"]))
-    if not spotify_token:
-        auth_url = spotify_auth.get_authorize_url()
-        return jsonify(auth_url=auth_url)
-    return jsonify(auth_token=spotify_token)
+    auth_url = spotify_auth.get_authorize_url()
+    return jsonify(auth_url=auth_url)
 
 
 @app.route('/api/spotify/get-token')
@@ -367,8 +362,14 @@ def get_access_token():
     code = request.args.get('code')
     try:
         auth_token = spotify_auth.get_access_token(code)
+        if os.path.exists(".cache"):
+            os.remove(".cache")
         if spotify_auth.is_token_expired(auth_token):
+            if os.path.exists(".cache"):
+                os.remove(".cache")
             return jsonify(auth_token=spotify_auth.refresh_access_token(auth_token["refresh_token"]))
+        if os.path.exists(".cache"):
+            os.remove(".cache")
         return jsonify(auth_token=auth_token)
     except:
         return jsonify(auth_token="")
@@ -480,6 +481,8 @@ def yt_playlist_metadata():
             response = playlist_youtube_metadata_auth_repeat(playlist_id, username)
             if "message" in response:
                 return json.dumps(response), response['status']
+            if len(response['items']) == 0:
+                return jsonify(metadata=[])
             return jsonify(metadata=compress_metadata_response(response))
         else:
             return jsonify(metadata=compress_metadata_response(response))
