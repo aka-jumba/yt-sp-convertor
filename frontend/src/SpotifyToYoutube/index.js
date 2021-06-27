@@ -11,6 +11,10 @@ import {
   convertSpotifyIdToLink,
   convertYoutubeIdToLink,
 } from "../swapYtDev";
+import LS from "../assets/ls.png";
+import LY from "../assets/ly.png";
+import Youtube from "../assets/youtube.png";
+import Spotify from "../assets/spotify.png";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 const loginURL = `${API_URL}/api/spotify-login`;
@@ -78,15 +82,29 @@ const handleLogin = () => {
   });
 };
 
-const convertPlaylist = async (playlistId, playlist_name, token) => {
-  let username = localStorage.getItem("yt-token");
+const convertPlaylist = async (
+  playlistId,
+  playlist_target,
+  token,
+  status = "public",
+  username,
+  isUrl
+) => {
   try {
-    const response = await axios.post(convertURL, {
+    let payload = {
       playlistId,
-      playlist_name,
       auth_token: token,
+      status,
       username,
-    });
+    };
+
+    if (isUrl) {
+      payload["target_playlist_id"] = playlist_target;
+    } else {
+      payload["playlist_name"] = playlist_target;
+    }
+
+    const response = await axios.post(convertURL, payload);
     return response.data.data;
   } catch (err) {
     throw err;
@@ -127,7 +145,7 @@ export default () => {
     const lenMappedSongs = mapped_list.length;
     const lenUnmappedSongs = unmapped_list.length;
     const totalSongs = lenMappedSongs + lenUnmappedSongs;
-    const spLink = `https://open.spotify.com/playlist/${link}`;
+    const spLink = `https://www.youtube.com/playlist?list=${link}`;
 
     return (
       <div className="container-div">
@@ -148,7 +166,7 @@ export default () => {
               <h4>
                 Link:&nbsp;
                 <a href={spLink} rel="noreferrer" target="_blank">
-                  {spLink}
+                  <img alt="Spotify" src={LY} height={30}></img>
                 </a>
               </h4>
               <div>
@@ -157,17 +175,19 @@ export default () => {
                   {mapped_list.map((song) => (
                     <ListGroup.Item>
                       <a
-                        href={convertYoutubeIdToLink(song["yt_video_id"])}
+                        target="_blank"
                         rel="noreferrer"
+                        href={convertSpotifyIdToLink(song["sp_uri"])}
                       >
-                        Youtube Link
+                        <img alt="Spotify" src={Spotify} height={20}></img>
                       </a>
                       <a
                         style={{ marginLeft: "1rem" }}
-                        href={convertSpotifyIdToLink(song["sp_uri"])}
+                        href={convertYoutubeIdToLink(song["yt_video_id"])}
+                        target="_blank"
                         rel="noreferrer"
                       >
-                        Spotify Link
+                        <img alt="YouTube" src={Youtube} height={20}></img>
                       </a>
                       <span style={{ marginLeft: "1rem" }}>
                         {song["title"] || "Unknown Title"}
@@ -176,18 +196,24 @@ export default () => {
                   ))}
                 </ListGroup>
               </div>
-              <div className="mt-2">
+              <div style={{ marginTop: "2rem" }}>
                 <h4 style={{ marginBottom: "2rem" }}>Unmapped Songs</h4>
                 <ListGroup>
                   {unmapped_list.map((song) => (
                     <ListGroup.Item>
-                      <a href={convertYoutubeIdToLink(song["videoId"])}>
-                        Youtube Link
+                      <a
+                        href={convertSpotifyIdToLink(song["videoId"])}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <img alt="Spotify" src={Spotify} height={20}></img>
                       </a>
-                      <span className="ml-1">
+                      <span style={{ marginLeft: "1rem" }}>
                         {song["title"] || "Unknown Title"}
                       </span>
-                      <span className="ml-1">Owner: {song["videoOwner"]}</span>
+                      <span style={{ marginLeft: "1rem" }}>
+                        Owner: {song["videoOwner"]}
+                      </span>
                     </ListGroup.Item>
                   ))}
                 </ListGroup>

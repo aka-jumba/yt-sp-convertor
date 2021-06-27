@@ -84,12 +84,34 @@ export default (props) => {
   const [name, setName] = useState("New Playlist");
   const [isVerified, setVerified] = useState(false);
   const [playlistData, setPlaylistData] = useState({});
+  const [targetUrl, setTargetUrl] = useState("");
 
   const onSubmit = async (e) => {
     e.preventDefault();
     let match = isSp2yt() ? extractSpotifyId(url) : extractYoutubeId(url);
     console.log(`Extracted ID`, match);
-    onConvert(match, name, plData["status"] || "private");
+    let username = localStorage.getItem("yt-token");
+
+    console.log(targetUrl);
+
+    let target = name;
+
+    let isUrl = false;
+    if (targetUrl.length) {
+      isUrl = true;
+      target = !isSp2yt()
+        ? extractSpotifyId(targetUrl)
+        : extractYoutubeId(targetUrl);
+    }
+
+    onConvert(
+      match,
+      target,
+      "",
+      plData["status"] || "private",
+      username,
+      isUrl
+    );
   };
 
   const onVerifyYoutube = async (e) => {
@@ -207,6 +229,22 @@ export default (props) => {
               placeholder="Eg: New Playlist"
               value={name}
               onChange={(e) => setName(e.target.value)}
+            />
+            <div className="my-2" style={{ marginTop: "4rem" }}>
+              <b>OR</b>
+            </div>
+            <Form.Label style={{ fontSize: "1.5rem", fontWeight: "600" }}>
+              {isSp2yt() ? "Youtube" : "Spotify"} URL
+            </Form.Label>
+            <Form.Control
+              type="text"
+              placeholder={`Eg: ${
+                isSp2yt()
+                  ? "https://open.spotify.com/playlist/4bnqXN2jgcHHVI1Vr6Jfhs"
+                  : "https://www.youtube.com/playlist?list=PLf8HsGQSTWJuhLrovf13prQArGRgeGDNT"
+              }`}
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
             />
           </Form.Group>
         </div>
