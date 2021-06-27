@@ -133,6 +133,7 @@ export default (props) => {
           mode="yt2sp"
           onConvert={onConvert}
           handleGoogleLogin={handleLogin}
+          getAuthToken={{}}
         />
       </div>
       {hitConvert && renderResults()}

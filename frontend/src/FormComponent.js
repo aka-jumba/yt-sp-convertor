@@ -6,6 +6,7 @@ import axios from "axios";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 const youtubePlaylistFetchURL = `${API_URL}/api/youtube-playlist-metadata`;
+const spotifyYoutubePlaylistFetchURL = `${API_URL}/api/spotify-playlist-metadata`;
 
 const extractSpotifyId = (url) => {
   let id = url;
@@ -32,8 +33,26 @@ const fetchYoutubePlaylistDetails = async (id) => {
   }
 };
 
+const fetchSpotifyPlaylistDetails = async (id, authToken) => {
+  console.log(authToken + " AUTH TOKEN")
+  try {
+    const { data } = await axios.post(spotifyYoutubePlaylistFetchURL, {
+      playlistId: id,
+      auth_token: authToken
+    });
+    return data;
+  } catch (err) {
+    throw err;
+  }
+}
+
 export default (props) => {
-  const { mode = "sp2yt", onConvert = () => {}, handleGoogleLogin } = props;
+  const {
+    mode = "sp2yt",
+    onConvert = () => {},
+    handleGoogleLogin,
+    getAuthToken = () => {},
+  } = props;
 
   const [url, setUrl] = useState(
     mode === "sp2yt"
@@ -46,7 +65,7 @@ export default (props) => {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    let match = extractYoutubeId(url);
+    let match = isSp2yt() ? extractSpotifyId(url) : extractYoutubeId(url);
     console.log(`Extracted ID`, match);
     onConvert(match, name);
   };
@@ -72,8 +91,18 @@ export default (props) => {
   };
 
   const onVerifySpotify = async (e) => {
+    console.log(url)
     e.preventDefault();
-    console.log("Verify spotify!");
+    setVerified(false);
+    setPlaylistData({});
+    try {
+      const spotifyAuthToken = await getAuthToken()
+      const data = await fetchSpotifyPlaylistDetails(extractSpotifyId(url), spotifyAuthToken)
+      setPlaylistData(data)
+      setVerified(true);
+    } catch (err) {
+      console.log("YAHAN KYA HANDLE KARNA HAI? " + err)
+    }
   };
 
   const isSp2yt = () => {
