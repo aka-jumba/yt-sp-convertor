@@ -12,7 +12,7 @@ Link to PPT: https://docs.google.com/presentation/d/1_omvmn7kzLCb2XawM4nUFbd73Nu
 
 ## Support
 
-For any issues/queries regarding the project, feel free to reach out to our active support team at [syncit.prod@gmail.com](syncit.prod@gmail.com)  
+For any issues/queries regarding the project, feel free to open an issue!
 
 _______________________________________________________________________________________________________________________
 
