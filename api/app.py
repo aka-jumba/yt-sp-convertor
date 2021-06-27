@@ -207,10 +207,10 @@ def insert_video_repeat_youtube_auth(new_playlist_id, video_id, count, username)
             credentials.append(credential)
         attempts += 1
     if len(credentials) == 0:
-        response = {"message": "Authenticate First"}
+        response = {"message": "Authenticate First",  "status": 501}
         return response
 
-    response = {"message": "No Quota Available in verified accounts!"}
+    response = {"message": "No Quota Available in verified accounts!", "status": 501}
     for credential in credentials:
         try:
             youtube_authenticated = build('youtube', 'v3', credentials=credential)
@@ -314,10 +314,10 @@ def get_playlist_item_repeat_youtube_auth(playlist_id, next_page_token, username
             credentials.append(credential)
         attempts += 1
     if len(credentials) == 0:
-        response = {"message": "Authenticate First"}
+        response = {"message": "Authenticate First", "status": 501}
         return response
 
-    response = {"message": "No Quota Available in verified accounts!"}
+    response = {"message": "No Quota Available in verified accounts!", "status": 502}
     for credential in credentials:
         try:
             youtube_authenticated = build('youtube', 'v3', credentials=credential)
@@ -337,10 +337,10 @@ def create_playlist_repeat_youtube_auth(new_playlist_title, status, username):
             credentials.append(credential)
         attempts += 1
     if len(credentials) == 0:
-        response = {"message": "Authenticate First"}
+        response = {"message": "Authenticate First", "status": 501}
         return response
 
-    response = {"message": "No Quota Available in verified accounts!"}
+    response = {"message": "No Quota Available in verified accounts!", "status": 501}
     for credential in credentials:
         try:
             youtube_authenticated = build('youtube', 'v3', credentials=credential)
@@ -518,7 +518,7 @@ def yt_to_sp_playlist_controller():
             if response is None:
                 response = {"message": "something went wrong!"}
             if "message" in response:
-                return json.dumps(response), 500
+                return json.dumps(response), response['status']
             if 'nextPageToken' not in response:
                 end_of_call = True
             else:
