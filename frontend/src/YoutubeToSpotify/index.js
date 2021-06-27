@@ -5,6 +5,7 @@ import Header from "../Header";
 import FormComponent from "../FormComponent";
 import { Spinner } from "react-bootstrap";
 import axios from "axios";
+import { currentDev, cycleDev } from "../swapYtDev";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 
@@ -33,10 +34,10 @@ const convertPlaylist = async (
       playlistId,
       playlist_name,
       auth_token: token,
-      status: "public",
+      status,
       username,
     });
-    return response;
+    return response.data.data;
   } catch (err) {
     throw err;
   }
@@ -45,19 +46,29 @@ const convertPlaylist = async (
 const handleLogin = () => {
   let url = `${youtubeLoginURL}`;
   let uniqueId = localStorage.getItem("yt-token");
+  let ytDev = currentDev();
 
   return new Promise(async (resolve, reject) => {
     try {
       const response = await axios.get(url, {
-        params: { id: 1, username: uniqueId },
+        params: { id: ytDev, username: uniqueId },
       });
       console.log(`Youtube login success`, response);
       resolve(response);
     } catch (err) {
-      console.error(err);
-      window.open(`${url}/?id=${1}&username=${uniqueId}`, "_blank");
+      console.error(`Youtube-login`, err);
+      if (err.response) {
+        const {
+          response: { status },
+        } = err;
+        if (status === 501) {
+          window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+        } else if (status === 502) {
+          cycleDev();
+          window.alert("Please try again!");
+        }
+      }
       return reject(err);
-      // reject(err);
     }
   });
 };
@@ -87,12 +98,12 @@ export default (props) => {
     return access_token;
   };
 
-  const onConvert = async (id, name, isPrivate = false) => {
+  const onConvert = async (id, name, status) => {
     console.log(id, name);
     setHitConvert(true);
     try {
       // fetch playlist details
-      if (isPrivate) {
+      if (status === "private") {
         const res_yt = await handleLogin();
         console.log(res_yt);
       }
@@ -112,18 +123,18 @@ export default (props) => {
         id,
         name,
         spotifyAccessToken,
-        "public",
+        status,
         uniqueId
       );
       console.log(response);
       setIsLoaded(true);
-      setPlData(response.data);
+      setPlData(response);
     } catch (err) {
       setIsLoaded(true);
       if (err.response) {
         window.alert(JSON.stringify(err.response));
       } else {
-        window.alert("Check console!");
+        // window.alert("Check console!");
       }
       console.error(err);
     }
@@ -133,7 +144,7 @@ export default (props) => {
     return (
       <div className="container-div">
         <div className="bubble">
-          {isLoaded && (
+          {!isLoaded && (
             <div className="loader">
               <Spinner
                 animation="grow"
@@ -143,6 +154,7 @@ export default (props) => {
               <span>Loading</span>
             </div>
           )}
+          <div>{JSON.stringify(plData)}</div>
         </div>
       </div>
     );
@@ -154,6 +166,7 @@ export default (props) => {
       <div className="yt-to-sp">
         <FormComponent
           mode="yt2sp"
+          plData={plData}
           onConvert={onConvert}
           handleGoogleLogin={handleLogin}
           getAuthToken={{}}

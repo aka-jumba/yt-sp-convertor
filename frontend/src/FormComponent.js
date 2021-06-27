@@ -30,7 +30,7 @@ const fetchYoutubePlaylistDetails = async (id) => {
       username,
     });
     console.log(data);
-    const { metdata: metadata } = data;
+    const { metadata } = data;
 
     return {
       owner: metadata["channel_title"],
@@ -69,14 +69,15 @@ export default (props) => {
   const {
     mode = "sp2yt",
     onConvert = () => {},
+    plData = {},
     handleGoogleLogin,
     getAuthToken = () => {},
   } = props;
 
   const [url, setUrl] = useState(
     mode === "sp2yt"
-      ? "https://open.spotify.com/playlist/1Wr1URyL0fZcW10cHyxgpj"
-      : "https://www.youtube.com/playlist?list=PLnA6ZM6GfCE0ezYy5YKrI7v6WZNkBP6rl"
+      ? "https://open.spotify.com/playlist/4bnqXN2jgcHHVI1Vr6Jfhs"
+      : "https://www.youtube.com/playlist?list=PLf8HsGQSTWJuhLrovf13prQArGRgeGDNT"
   );
   const [name, setName] = useState("New Playlist");
   const [isVerified, setVerified] = useState(false);
@@ -86,7 +87,7 @@ export default (props) => {
     e.preventDefault();
     let match = isSp2yt() ? extractSpotifyId(url) : extractYoutubeId(url);
     console.log(`Extracted ID`, match);
-    onConvert(match, name);
+    onConvert(match, name, plData["status"] || "private");
   };
 
   const onVerifyYoutube = async (e) => {

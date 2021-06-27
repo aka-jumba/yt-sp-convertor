@@ -14,6 +14,13 @@ if (!ytId) {
 ytId = localStorage.getItem("yt-token");
 console.log("Set unique user ID", ytId);
 
+let ytDev = localStorage.setItem("yt-dev");
+if (!ytDev) {
+  localStorage.setItem("yt-dev", 0);
+}
+ytDev = localStorage.getItem("yt-dev");
+console.log("Youtube DevID:", ytDev);
+
 ReactDOM.render(
   <React.StrictMode>
     <App />

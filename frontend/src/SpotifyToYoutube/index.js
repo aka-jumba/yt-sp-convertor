@@ -5,6 +5,7 @@ import Header from "../Header";
 import FormComponent from "../FormComponent";
 import axios from "axios";
 import { Spinner } from "react-bootstrap";
+import { currentDev, cycleDev } from "../swapYtDev";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 const loginURL = `${API_URL}/api/spotify-login`;
@@ -42,30 +43,42 @@ const getSpotifyAuthToken = async () => {
 const handleLogin = () => {
   let url = `${youtubeLoginURL}`;
   let uniqueId = localStorage.getItem("yt-token");
+  let ytDev = currentDev();
   return new Promise(async (resolve, reject) => {
     try {
       const response = await axios.get(url, {
-        params: { id: 1, username: uniqueId },
+        params: { id: ytDev, username: uniqueId },
       });
       console.log(`Youtube login success`, response);
       resolve(response);
     } catch (err) {
-      console.error(err);
-      window.open(`${url}`, "_blank");
+      console.error(`Youtube-login`, err);
+      if (err.response) {
+        const {
+          response: { status },
+        } = err;
+        if (status === 501) {
+          window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+        } else if (status === 502) {
+          cycleDev();
+          window.alert("Please try again!");
+        }
+      }
       return reject(err);
-      // reject(err);
     }
   });
 };
 
 const convertPlaylist = async (playlistId, playlist_name, token) => {
+  let username = localStorage.getItem("yt-token");
   try {
     const response = await axios.post(convertURL, {
       playlistId,
       playlist_name,
       auth_token: token,
+      username,
     });
-    return response;
+    return response.data.data;
   } catch (err) {
     throw err;
   }
@@ -80,7 +93,7 @@ export default () => {
     try {
       const res_yt = await handleLogin();
       console.log(res_yt);
-
+      setHitConvert(true);
       let spotifyAccessToken = localStorage.getItem("spotify-access-token");
       console.log(`Fetched from localstorage`, spotifyAccessToken);
       if (!spotifyAccessToken) {
@@ -89,9 +102,13 @@ export default () => {
       if (spotifyAccessToken === null) {
         return window.alert("Account verified! Please press Convert again!");
       }
+      setIsLoaded(false);
       const response = await convertPlaylist(id, name, spotifyAccessToken);
       console.log(response);
+      setIsLoaded(true);
+      setPlData(response);
     } catch (err) {
+      setIsLoaded(true);
       console.error(err);
     }
   };
@@ -100,7 +117,7 @@ export default () => {
     return (
       <div className="container-div">
         <div className="bubble">
-          {isLoaded && (
+          {!isLoaded && (
             <div className="loader">
               <Spinner
                 animation="grow"
@@ -110,6 +127,7 @@ export default () => {
               <span>Loading</span>
             </div>
           )}
+          <div>{JSON.stringify(plData)}</div>
         </div>
       </div>
     );
