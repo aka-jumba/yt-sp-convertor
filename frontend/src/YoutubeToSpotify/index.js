@@ -3,9 +3,14 @@ import React, { useState } from "react";
 import "./index.css";
 import Header from "../Header";
 import FormComponent from "../FormComponent";
-import { Spinner } from "react-bootstrap";
+import { Spinner, ListGroup } from "react-bootstrap";
 import axios from "axios";
-import { currentDev, cycleDev } from "../swapYtDev";
+import {
+  currentDev,
+  cycleDev,
+  convertYoutubeIdToLink,
+  convertSpotifyIdToLink,
+} from "../swapYtDev";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 
@@ -43,10 +48,20 @@ const convertPlaylist = async (
   }
 };
 
-const handleLogin = () => {
+const handleLogin = (responseStatus) => {
   let url = `${youtubeLoginURL}`;
   let uniqueId = localStorage.getItem("yt-token");
   let ytDev = currentDev();
+
+  if (responseStatus === 501) {
+    return window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+  } else if (responseStatus === 502) {
+    cycleDev();
+    ytDev = currentDev();
+    return window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
+    // window.alert("Please try again!");
+    // return;
+  }
 
   return new Promise(async (resolve, reject) => {
     try {
@@ -56,17 +71,9 @@ const handleLogin = () => {
       console.log(`Youtube login success`, response);
       resolve(response);
     } catch (err) {
-      console.error(`Youtube-login`, err);
+      console.error(`Youtube-login`, JSON.stringify(err));
       if (err.response) {
-        const {
-          response: { status },
-        } = err;
-        if (status === 501) {
-          window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
-        } else if (status === 502) {
-          cycleDev();
-          window.alert("Please try again!");
-        }
+        console.log(`Youtube-login-response`, err.response);
       }
       return reject(err);
     }
@@ -141,6 +148,12 @@ export default (props) => {
   };
 
   const renderResults = () => {
+    const { link = "", mapped_list = [], unmapped_list = [] } = plData;
+    const lenMappedSongs = mapped_list.length;
+    const lenUnmappedSongs = unmapped_list.length;
+    const totalSongs = lenMappedSongs + lenUnmappedSongs;
+    const spLink = `https://open.spotify.com/playlist/${link}`;
+
     return (
       <div className="container-div">
         <div className="bubble">
@@ -154,7 +167,60 @@ export default (props) => {
               <span>Loading</span>
             </div>
           )}
-          <div>{JSON.stringify(plData)}</div>
+          {isLoaded && (
+            <div className="d-flex flex-column">
+              <h4>{`Total: ${totalSongs} Success: ${lenMappedSongs} Error: ${lenUnmappedSongs}`}</h4>
+              <h4>
+                Link:&nbsp;
+                <a href={spLink} rel="noreferrer" target="_blank">
+                  {spLink}
+                </a>
+              </h4>
+              <div>
+                <h4 style={{ marginBottom: "2rem" }}>Mapped Songs</h4>
+                <ListGroup>
+                  {mapped_list.map((song) => (
+                    <ListGroup.Item>
+                      <a
+                        href={convertYoutubeIdToLink(song["yt_video_id"])}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Youtube Link
+                      </a>
+                      <a
+                        style={{ marginLeft: "1rem" }}
+                        target="_blank"
+                        rel="noreferrer"
+                        href={convertSpotifyIdToLink(song["uri"])}
+                      >
+                        Spotify Link
+                      </a>
+                      <span style={{ marginLeft: "1rem" }}>
+                        {song["title"] || "Unknown Title"}
+                      </span>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              </div>
+              <div className="mt-2">
+                <h4 style={{ marginBottom: "2rem" }}>Unmapped Songs</h4>
+                <ListGroup>
+                  {unmapped_list.map((song) => (
+                    <ListGroup.Item>
+                      <a href={convertYoutubeIdToLink(song["videoId"])}>
+                        Youtube Link
+                      </a>
+                      <span className="ml-1">
+                        {song["title"] || "Unknown Title"}
+                      </span>
+                      <span className="ml-1">Owner: {song["videoOwner"]}</span>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

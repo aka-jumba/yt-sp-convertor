@@ -14,7 +14,7 @@ if (!ytId) {
 ytId = localStorage.getItem("yt-token");
 console.log("Set unique user ID", ytId);
 
-let ytDev = localStorage.setItem("yt-dev");
+let ytDev = localStorage.getItem("yt-dev");
 if (!ytDev) {
   localStorage.setItem("yt-dev", 0);
 }

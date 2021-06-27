@@ -4,8 +4,13 @@ import "./index.css";
 import Header from "../Header";
 import FormComponent from "../FormComponent";
 import axios from "axios";
-import { Spinner } from "react-bootstrap";
-import { currentDev, cycleDev } from "../swapYtDev";
+import { Spinner, ListGroup } from "react-bootstrap";
+import {
+  currentDev,
+  cycleDev,
+  convertSpotifyIdToLink,
+  convertYoutubeIdToLink,
+} from "../swapYtDev";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 const loginURL = `${API_URL}/api/spotify-login`;
@@ -61,7 +66,11 @@ const handleLogin = () => {
           window.open(`${url}/?id=${ytDev}&username=${uniqueId}`, "_blank");
         } else if (status === 502) {
           cycleDev();
-          window.alert("Please try again!");
+          return window.open(
+            `${url}/?id=${ytDev}&username=${uniqueId}`,
+            "_blank"
+          );
+          // window.alert("Please try again!");
         }
       }
       return reject(err);
@@ -114,6 +123,12 @@ export default () => {
   };
 
   const renderResults = () => {
+    const { link = "", mapped_list = [], unmapped_list = [] } = plData;
+    const lenMappedSongs = mapped_list.length;
+    const lenUnmappedSongs = unmapped_list.length;
+    const totalSongs = lenMappedSongs + lenUnmappedSongs;
+    const spLink = `https://open.spotify.com/playlist/${link}`;
+
     return (
       <div className="container-div">
         <div className="bubble">
@@ -127,7 +142,58 @@ export default () => {
               <span>Loading</span>
             </div>
           )}
-          <div>{JSON.stringify(plData)}</div>
+          {isLoaded && (
+            <div className="d-flex flex-column">
+              <h4>{`Total: ${totalSongs} Success: ${lenMappedSongs} Error: ${lenUnmappedSongs}`}</h4>
+              <h4>
+                Link:&nbsp;
+                <a href={spLink} rel="noreferrer" target="_blank">
+                  {spLink}
+                </a>
+              </h4>
+              <div>
+                <h4 style={{ marginBottom: "2rem" }}>Mapped Songs</h4>
+                <ListGroup>
+                  {mapped_list.map((song) => (
+                    <ListGroup.Item>
+                      <a
+                        href={convertYoutubeIdToLink(song["yt_video_id"])}
+                        rel="noreferrer"
+                      >
+                        Youtube Link
+                      </a>
+                      <a
+                        style={{ marginLeft: "1rem" }}
+                        href={convertSpotifyIdToLink(song["sp_uri"])}
+                        rel="noreferrer"
+                      >
+                        Spotify Link
+                      </a>
+                      <span style={{ marginLeft: "1rem" }}>
+                        {song["title"] || "Unknown Title"}
+                      </span>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              </div>
+              <div className="mt-2">
+                <h4 style={{ marginBottom: "2rem" }}>Unmapped Songs</h4>
+                <ListGroup>
+                  {unmapped_list.map((song) => (
+                    <ListGroup.Item>
+                      <a href={convertYoutubeIdToLink(song["videoId"])}>
+                        Youtube Link
+                      </a>
+                      <span className="ml-1">
+                        {song["title"] || "Unknown Title"}
+                      </span>
+                      <span className="ml-1">Owner: {song["videoOwner"]}</span>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

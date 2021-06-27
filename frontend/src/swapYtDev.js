@@ -1,5 +1,5 @@
 export const currentDev = () => {
-  localStorage.getItem("yt-dev");
+  return localStorage.getItem("yt-dev");
 };
 
 export const cycleDev = () => {
@@ -8,4 +8,13 @@ export const cycleDev = () => {
   code = code + 1;
   if (code > 2) code = 0;
   localStorage.setItem("yt-dev", code);
+};
+
+export const convertSpotifyIdToLink = (id) => {
+  id = id.split(":")[2]
+  return `https://open.spotify.com/track/${id}`;
+};
+
+export const convertYoutubeIdToLink = (id) => {
+  return `https://youtu.be/${id}`;
 };

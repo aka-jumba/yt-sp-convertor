@@ -1,6 +1,6 @@
 /* eslint-disable import/no-anonymous-default-export */
 import React, { useState } from "react";
-import { Form, Button } from "react-bootstrap";
+import { Form, Button, Alert } from "react-bootstrap";
 import DownArrow from "./assets/downloading_white_48dp.svg";
 import axios from "axios";
 
@@ -24,6 +24,7 @@ const extractYoutubeId = (url) => {
 
 const fetchYoutubePlaylistDetails = async (id) => {
   let username = localStorage.getItem("yt-token");
+
   try {
     const { data } = await axios.post(youtubePlaylistFetchURL, {
       playlistId: id,
@@ -41,6 +42,7 @@ const fetchYoutubePlaylistDetails = async (id) => {
   } catch (err) {
     if (err.response) {
       console.log(err.response);
+      throw err.response.status;
     }
     throw err;
   }
@@ -102,7 +104,7 @@ export default (props) => {
     } catch (err) {
       console.error(err);
       try {
-        const loginRes = await handleGoogleLogin();
+        const loginRes = await handleGoogleLogin(err);
         console.log(`Successfully logged in Google!`, loginRes);
       } catch (er) {
         console.error(`Google login mein error`, er);
@@ -178,7 +180,13 @@ export default (props) => {
             >
               Verify
             </Button>
-            {isVerified && JSON.stringify(playlistData)}
+            {isVerified && (
+              <div className="mt-3">
+                <Alert variant="success">
+                  {`Title: ${playlistData["title"]} Owner: ${playlistData["owner"]} Status: ${playlistData["status"]}`}
+                </Alert>
+              </div>
+            )}
           </Form.Group>
           <Form.Group>
             <div
