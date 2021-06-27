@@ -9,7 +9,7 @@ export default (props) => {
   return (
     <div className="header">
       <div className="bubble text-white d-flex flex-column align-items-center">
-        <h1>Spotify Youtube App</h1>
+        <h1>SyncIt</h1>
         <div className="mt-2">
           <Button
             variant="success"

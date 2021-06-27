@@ -116,7 +116,7 @@ export default () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [plData, setPlData] = useState({});
 
-  const onConvert = async (id, name) => {
+  const onConvert = async (id, name, status, isUrl) => {
     try {
       const res_yt = await handleLogin();
       console.log(res_yt);
@@ -130,7 +130,15 @@ export default () => {
         return window.alert("Account verified! Please press Convert again!");
       }
       setIsLoaded(false);
-      const response = await convertPlaylist(id, name, spotifyAccessToken);
+      let uniqueId = localStorage.getItem("yt-token");
+      const response = await convertPlaylist(
+        id,
+        name,
+        spotifyAccessToken,
+        status,
+        uniqueId,
+        isUrl
+      );
       console.log(response);
       setIsLoaded(true);
       setPlData(response);

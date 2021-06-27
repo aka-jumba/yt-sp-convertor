@@ -104,12 +104,12 @@ export default (props) => {
         : extractYoutubeId(targetUrl);
     }
 
+    console.log(plData);
+
     onConvert(
-      match,
-      target,
-      "",
-      plData["status"] || "private",
-      username,
+      match, //id
+      target, //name
+      playlistData["status"],
       isUrl
     );
   };
